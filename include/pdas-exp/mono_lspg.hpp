@@ -20,7 +20,7 @@ void run_mono_lspg(AppType & system, ParserType & parser)
     auto basis = pdas::read_matrix_from_binary<scalar_type>(
         parser.romFullMeshPodBasisFile(), parser.romModeCount());
     const auto trialSpace = pressio::rom::create_trial_column_subspace<
-        reduced_state_type>(move(basis), move(trans), parser.romIsAffine());
+        reduced_state_type>(move(basis), move(trans), true);
 
     // project initial condition
     auto state = system.initialCondition();

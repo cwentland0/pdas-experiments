@@ -12,6 +12,10 @@ public:
         : myfile_("state_snapshots.bin",  std::ios::out | std::ios::binary),
         sampleFreq_(freq){}
 
+    StateObserver() = default;
+    StateObserver & operator=(StateObserver &) = default;
+    StateObserver & operator=(StateObserver &&) = default;
+
     ~StateObserver(){ myfile_.close(); }
 
     template<typename TimeType, typename ObservableType>
@@ -21,14 +25,14 @@ public:
             const ObservableType & state)
     {
         if (step.get() % sampleFreq_ == 0){
-        const std::size_t ext = state.size()*sizeof(typename ObservableType::Scalar);
-        myfile_.write(reinterpret_cast<const char*>(&state(0)), ext);
+            const std::size_t ext = state.size()*sizeof(typename ObservableType::Scalar);
+            myfile_.write(reinterpret_cast<const char*>(&state(0)), ext);
         }
     }
 
 private:
     std::ofstream myfile_;
-    const int sampleFreq_ = {};
+    int sampleFreq_ = {};
 };
 
 #endif
