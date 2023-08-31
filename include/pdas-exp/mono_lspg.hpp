@@ -1,3 +1,5 @@
+#ifndef PDAS_EXPERIMENTS_LSPG_HPP_
+#define PDAS_EXPERIMENTS_LSPG_HPP_
 
 #include "pressio/ode_advancers.hpp"
 #include "pressio/rom_subspaces.hpp"
@@ -59,3 +61,5 @@ void run_mono_lspg(AppType & system, ParserType & parser)
         pressio::ode::StepCount(parser.numSteps()),
         Obs, NonLinSolver);
 }
+
+#endif

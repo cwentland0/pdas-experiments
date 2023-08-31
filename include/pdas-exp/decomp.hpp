@@ -1,4 +1,7 @@
 
+#ifndef PDAS_EXPERIMENTS_DECOMP_HPP_
+#define PDAS_EXPERIMENTS_DECOMP_HPP_
+
 #include "pda-schwarz/schwarz.hpp"
 #include "observer.hpp"
 
@@ -64,3 +67,5 @@ void run_decomp(ParserType & parser)
 
     }
 }
+
+#endif
