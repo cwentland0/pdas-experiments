@@ -77,11 +77,8 @@ int main(int argc, char *argv[])
         }
         else {
             const auto meshObj = pda::load_cellcentered_uniform_mesh_eigen<scalar_t>(parser.meshDir());
-            const auto gravity  = parser.gravity();
-            const auto coriolis = parser.coriolis();
-            const auto pulseMag = parser.pulseMagnitude();
-            // TODO: If SWE expanded, stop using this shortcut method
-            auto fomSystem = pda::create_slip_wall_swe_2d_problem_eigen(meshObj, order, gravity, coriolis, pulseMag);
+            auto fomSystem = pda::create_problem_eigen(meshObj, parser.probId(), order, parser.icFlag(), parser.userParams());
+
             dispatch_mono(fomSystem, parser);
         }
 
@@ -95,7 +92,15 @@ int main(int argc, char *argv[])
         }
         else {
             const auto meshObj = pda::load_cellcentered_uniform_mesh_eigen<scalar_t>(parser.meshDir());
-            auto fomSystem = pda::create_problem_eigen(meshObj, parser.probId(), order, parser.icFlag());
+
+            // NOTE: this hack is required because there is no generic overload
+            //  to supply user parameters, since not all problems accept params like SWE.
+            //  Have to force it to use the CustomBC overload, which catches invalid problems.
+            using mesh_t = decltype(meshObj);
+            auto bcFunctor = pdas::BCFunctor<mesh_t>(pdas::BCType::HomogNeumann);
+            auto fomSystem = pda::create_problem_eigen(meshObj, parser.probId(), order,
+                bcFunctor, bcFunctor, bcFunctor, bcFunctor, parser.icFlag(), parser.userParams());
+
             dispatch_mono(fomSystem, parser);
         }
 

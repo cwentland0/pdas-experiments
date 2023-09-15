@@ -36,6 +36,7 @@ protected:
     ScalarType finalTime_       = {};
     std::string problemName_    = "";
     int icFlag_                 = -1;
+    std::unordered_map<std::string, ScalarType> userParams_ = {};
 
 public:
     ParserCommon() = delete;
@@ -48,6 +49,7 @@ public:
     auto finalTime()            const { return finalTime_; }
     auto problemName()          const { return problemName_; }
     auto icFlag()               const { return icFlag_; }
+    auto userParams()           const { return userParams_; }
 
 private:
     void parseImpl(YAML::Node & node)
@@ -68,9 +70,10 @@ private:
         if (node[entry]) problemName_ = node[entry].as<std::string>();
         else throw std::runtime_error("Input: missing " + entry);
 
-        // not all problems have an initial condition flag
+        // NOTE: making this required for now
         entry = "icFlag";
         if (node[entry]) icFlag_ = node[entry].as<int>();
+        else throw std::runtime_error("Input: missing " + entry);
 
     }
 };
@@ -196,6 +199,7 @@ protected:
     std::string romPodBasisRoot_ = "";
     std::string romAffineShiftRoot_ = "";
 
+    bool additive_ = false;
     ScalarType relTol_ = 1e-11;
     ScalarType absTol_ = 1e-11;
     int convStepMax_ = 10;
@@ -212,6 +216,7 @@ public:
     auto romModeCountVec()      const { return romSizeVec_; }
     auto romPodBasisRoot()      const { return romPodBasisRoot_; }
     auto romAffineShiftRoot()   const { return romAffineShiftRoot_; }
+    auto isAdditive()           const { return additive_; }
     auto relTol()               const { return relTol_; }
     auto absTol()               const { return absTol_; }
     auto convStepMax()          const { return convStepMax_; }
@@ -240,6 +245,10 @@ private:
             else {
                 throw std::runtime_error("Input: missing " + entry);
             }
+
+            // Additive is false by default
+            entry = "additive";
+            if (decompNode[entry]) additive_ = decompNode[entry].as<bool>();
 
             // Tolerances have default values
             entry = "relTol";
@@ -355,8 +364,6 @@ class Parser2DSwe: public ParserProblem<ScalarType>
 {
 
     pda::Swe2d probId_ = {};
-    // gravity, coriolis, pulseMagnitude
-    std::array<ScalarType, 3> params_ = {9.8, -3.0, 0.125};
 
 public:
     Parser2DSwe() = delete;
@@ -367,9 +374,6 @@ public:
     }
 
     auto probId()           const{ return probId_; }
-    auto gravity()          const{ return params_[0]; }
-    auto coriolis()         const{ return params_[1]; }
-    auto pulseMagnitude()   const{ return params_[2]; }
 
 private:
     void parseImpl(YAML::Node & node) {
@@ -385,14 +389,44 @@ private:
             probId_ = pda::Swe2d::SlipWall;
         }
 
-        const std::array<std::string, 3> names = {"gravity", "coriolis", "pulsemag"};
-        for (int i = 0; i < 3; ++i) {
+        // physical parameters
+        const std::array<std::string, 2> names = {"gravity", "coriolis"};
+        for (int i = 0; i < 2; ++i) {
             if (node[names[i]]) {
-                params_[i] = node[names[i]].as<ScalarType>();
+                this->userParams_[names[i]] = node[names[i]].as<ScalarType>();
             }
-            else{
-                throw std::runtime_error("Cannot find " + names[i] + " in input file");
+            else {
+                throw std::runtime_error("Input: missing " + names[i]);
             }
+        }
+
+        // initial condition parameters
+        if (this->icFlag_ == 1) {
+            const std::array<std::string, 3> names = {"pulseMagnitude", "pulseX", "pulseY"};
+            for (int i = 0; i < 3; ++i) {
+                if (node[names[i]]) {
+                    this->userParams_[names[i]] = node[names[i]].as<ScalarType>();
+                }
+                else {
+                    throw std::runtime_error("Input: missing " + names[i]);
+                }
+            }
+        }
+        else if (this->icFlag_ == 2) {
+            const std::array<std::string, 6> names = {
+                "pulseMagnitude1", "pulseX1", "pulseY1",
+                "pulseMagnitude2", "pulseX2", "pulseY2"};
+            for (int i = 0; i < 6; ++i) {
+                if (node[names[i]]) {
+                    this->userParams_[names[i]] = node[names[i]].as<ScalarType>();
+                }
+                else {
+                    throw std::runtime_error("Input: missing " + names[i]);
+                }
+            }
+        }
+        else {
+            throw std::runtime_error("Invalid SWE icFlag: " + std::to_string(this->icFlag_));
         }
     }
 };
@@ -417,16 +451,52 @@ public:
 private:
     void parseImpl(YAML::Node & node) {
 
+        std::string entry;
+
         if (this->problemName_ == "Riemann") {
             probId_ = pda::Euler2d::Riemann;
             if ((this->icFlag_ < 1) || (this->icFlag_ > 2)) {
                 throw std::runtime_error("Invalid icFlag for Riemann: " + std::to_string(this->icFlag_));
             }
+
+            // same name regardless of icFlag
+            entry = "riemannTopRightPressure";
+            if (node[entry]) this->userParams_[entry] = node[entry].as<ScalarType>();
+            else throw std::runtime_error("Input: missing " + entry);
+
+            if (this->icFlag_ == 2) {
+                const std::array<std::string, 4> names = {
+                    "riemannTopRightXVel", "riemannTopRightYVel",
+                    "riemannTopRightDensity", "riemannBotLeftPressure"};
+                for (int i = 0; i < 4; ++i) {
+                    if (node[names[i]]) {
+                        this->userParams_[names[i]] = node[names[i]].as<ScalarType>();
+                    }
+                    else {
+                        throw std::runtime_error("Input: missing " + names[i]);
+                    }
+                }
+            }
+
+        }
+        else if (this->problemName_ == "NormalShock") {
+            probId_ = pda::Euler2d::NormalShock;
+            // no icFlag for this case
+
+            entry = "normalShockMach";
+            if (node[entry]) this->userParams_[entry] = node[entry].as<ScalarType>();
+            else throw std::runtime_error("Input: missing " + entry);
+
         }
         // TODO: expand
         else {
             throw std::runtime_error("Invalid problemName: " + this->problemName_);
         }
+
+        // only one physical parameter, gamma
+        entry = "gamma";
+        if (node[entry]) this->userParams_[entry] = node[entry].as<ScalarType>();
+        else throw std::runtime_error("Input: missing " + entry);
 
     }
 };

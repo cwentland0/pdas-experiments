@@ -28,7 +28,8 @@ void run_decomp(ParserType & parser)
         parser.romAffineShiftRoot(),
         parser.romPodBasisRoot(),
         parser.romModeCountVec(),
-        parser.icFlag());
+        parser.icFlag(),
+        parser.userParams());
     auto dtVec = parser.dtVec();
     pdas::SchwarzDecomp decomp(subdomains, tiling, dtVec);
 
@@ -52,7 +53,8 @@ void run_decomp(ParserType & parser)
             time,
             parser.relTol(),
             parser.absTol(),
-            parser.convStepMax()
+            parser.convStepMax(),
+            parser.isAdditive()
         );
 
         time += decomp.m_dtMax;
