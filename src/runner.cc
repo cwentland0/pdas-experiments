@@ -20,8 +20,11 @@ void dispatch_mono(AppType fomSystem, ParserType & parser)
         if (parser.romAlgorithm() == "Galerkin") {
             throw std::runtime_error("Monolithic Galerkin not implemented yet");
         }
-        else {
+        else if (parser.romAlgorithm() == "LSPG") {
             run_mono_lspg(fomSystem, parser);
+        }
+        else {
+            throw std::runtime_error("Invalid ROM algorithm");
         }
     }
 }

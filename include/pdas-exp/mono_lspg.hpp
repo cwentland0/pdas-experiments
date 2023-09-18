@@ -5,6 +5,7 @@
 #include "pressio/rom_subspaces.hpp"
 #include "pressio/rom_lspg_unsteady.hpp"
 #include "observer.hpp"
+#include <chrono>
 
 template<class AppType, class ParserType>
 void run_mono_lspg(AppType & system, ParserType & parser)
@@ -55,11 +56,18 @@ void run_mono_lspg(AppType & system, ParserType & parser)
     NonLinSolver.setStopTolerance(1e-5);
 
     StateObserver Obs(parser.stateSamplingFreq());
+    RuntimeObserver Obs_run("runtime.bin");
+
     const auto startTime = static_cast<typename app_t::scalar_type>(0.0);
+    auto runtimeStart = std::chrono::high_resolution_clock::now();
     pressio::ode::advance_n_steps(stepperObj, reducedState, startTime,
         parser.timeStepSize(),
         pressio::ode::StepCount(parser.numSteps()),
         Obs, NonLinSolver);
+    auto runtimeEnd = std::chrono::high_resolution_clock::now();
+    auto nsElapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(runtimeEnd - runtimeStart).count();
+    double secElapsed = static_cast<double>(nsElapsed) * 1e-9;
+    Obs_run(secElapsed);
 }
 
 #endif

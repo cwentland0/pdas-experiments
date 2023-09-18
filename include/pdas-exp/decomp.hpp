@@ -39,6 +39,7 @@ void run_decomp(ParserType & parser)
         obsVec[domIdx] = StateObserver("state_snapshots_" + to_string(domIdx) + ".bin", parser.stateSamplingFreq());
         obsVec[domIdx](::pressio::ode::StepCount(0), 0.0, decomp.m_subdomainVec[domIdx]->m_state);
     }
+    RuntimeObserver obs_time("runtime.bin", (*tiling).count());
 
     // solve
     const int numSteps = parser.finalTime() / decomp.m_dtMax;
@@ -48,7 +49,7 @@ void run_decomp(ParserType & parser)
         cout << "Step " << outerStep << endl;
 
         // compute contoller step until convergence
-        decomp.calc_controller_step(
+        auto runtimeIter = decomp.calc_controller_step(
             outerStep,
             time,
             parser.relTol(),
@@ -66,6 +67,9 @@ void run_decomp(ParserType & parser)
                 obsVec[domIdx](stepWrap, time, decomp.m_subdomainVec[domIdx]->m_state);
             }
         }
+
+        // runtime observer
+        obs_time(runtimeIter);
 
     }
 }
