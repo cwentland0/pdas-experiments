@@ -1,0 +1,25 @@
+
+runner: "/home/crwentl/research/code/pressio-proj/pdas-experiments/build/runner"
+run: True
+
+equations: "2d_swe"
+problem: "SlipWall"
+
+scheme: "BDF1"
+tf: 10.0
+dt: 0.01
+sampfreq: 1
+
+meshroot: "/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/mmldecset23/swe/meshes"
+nx: 100
+ny: 100
+
+runtype: "fom"
+
+icFlag: 1
+phys_params_user:
+    coriolis: [0.0, -0.5, -1.0, -1.5, -2.0, -2.5, -3.0, -3.5, -4.0, -4.5, -5.0]
+
+ic_params_user:
+
+outdir_base: "/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/mmldecset23/swe/runs"
