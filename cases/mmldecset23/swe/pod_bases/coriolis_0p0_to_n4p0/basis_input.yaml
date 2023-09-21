@@ -1,0 +1,29 @@
+rundir_base: "/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/mmldecset23/swe/runs"
+dataroot: "state_snapshots"
+
+equations: "2d_swe"
+problem: "SlipWall"
+
+meshroot: "/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/mmldecset23/swe/meshes"
+nx: 100
+ny: 100
+
+decomp: False
+ndomX: 2
+ndomY: 2
+overlap: 20
+
+icFlag: 1
+phys_params_user:
+    coriolis: [-4.0, -3.0, -2.0, -1.0, 0.0]
+ic_params_user:
+
+idx_start: 0
+idx_end: null
+idx_skip: 5
+
+center_method: "mean"
+norm_method: "one"
+nmodes: 100
+
+outdir: "/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/mmldecset23/swe/pod_bases/coriolis_0p0_to_n4p0"

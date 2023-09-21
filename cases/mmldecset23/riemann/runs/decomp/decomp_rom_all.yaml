@@ -1,0 +1,42 @@
+
+runner: "/home/crwentl/research/code/pressio-proj/pdas-experiments/build/runner"
+run: True
+
+equations: "2d_euler"
+problem: "Riemann"
+
+phys_params_user:
+    gamma: 1.4
+
+icFlag: 2
+ic_params_user:
+    riemannTopRightPressure: [1.0, 1.125, 1.25, 1.375, 1.5, 1.625, 1.75, 1.875, 2.0]
+    #riemannTopRightPressure: [1.5]
+    riemannTopRightXVel: 0.0
+    riemannTopRightYVel: 0.0
+    riemannTopRightDensity: 1.5
+    riemannBotLeftPressure: 0.029
+
+scheme: "BDF1"
+tf: 0.8
+dt: 0.005
+sampfreq: 2
+
+meshroot: "/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/mmldecset23/riemann/meshes"
+nx: 100
+ny: 100
+
+runtype: "decomp"
+ndomX: 2
+ndomY: 2
+overlap: 4
+isadditive: False
+
+# rom settings
+rom_algo: "LSPG"
+nmodes: 80
+basis_dir: "/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/mmldecset23/riemann/pod_bases/topRightPress_1p0_to_2p0"
+basis_file: "basis"
+shift_file: "center"
+
+outdir_base: "/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/mmldecset23/riemann/runs"
