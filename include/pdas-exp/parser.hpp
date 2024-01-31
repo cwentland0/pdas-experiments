@@ -17,11 +17,21 @@ pressio::ode::StepScheme string_to_ode_scheme(const std::string & strIn)
 {
     namespace pode = pressio::ode;
 
-    if (strIn == "BDF1") { return pode::StepScheme::BDF1; }
+    if      (strIn == "BDF1")          { return pode::StepScheme::BDF1; }
     else if (strIn == "CrankNicolson") { return pode::StepScheme::CrankNicolson; }
-    else if (strIn == "BDF2") { return pode::StepScheme::BDF2; }
+    else if (strIn == "BDF2")          { return pode::StepScheme::BDF2; }
     else{
         throw std::runtime_error("string_to_ode_scheme: Invalid odeScheme");
+    }
+}
+
+pressiodemoapps::InviscidFluxReconstruction int_to_flux_order(const int intIn)
+{
+    if      (intIn == 1) { return pressiodemoapps::InviscidFluxReconstruction::FirstOrder; }
+    else if (intIn == 3) { return pressiodemoapps::InviscidFluxReconstruction::Weno3; }
+    else if (intIn == 5) { return pressiodemoapps::InviscidFluxReconstruction::Weno5; }
+    else{
+        throw std::runtime_error("int_to_order: Invalid order");
     }
 }
 
@@ -31,11 +41,12 @@ class ParserCommon
 {
 
 protected:
-    std::string meshDirPath_    = "";
-    int stateSamplingFreq_      = {};
-    ScalarType finalTime_       = {};
-    std::string problemName_    = "";
-    int icFlag_                 = -1;
+    std::string meshDirPathFull_    = "";
+    std::string meshDirPathHyper_   = "";
+    int stateSamplingFreq_          = {};
+    ScalarType finalTime_           = {};
+    std::string problemName_        = "";
+    int icFlag_                     = -1;
     std::unordered_map<std::string, ScalarType> userParams_ = {};
 
 public:
@@ -44,7 +55,7 @@ public:
         this->parseImpl(node);
     }
 
-    auto meshDir()              const { return meshDirPath_; }
+    auto meshDirFull()          const { return meshDirPathFull_; }
     auto stateSamplingFreq()    const { return stateSamplingFreq_; }
     auto finalTime()            const { return finalTime_; }
     auto problemName()          const { return problemName_; }
@@ -54,8 +65,8 @@ public:
 private:
     void parseImpl(YAML::Node & node)
     {
-        std::string entry = "meshDir";
-        if (node[entry]) meshDirPath_ = node[entry].as<std::string>();
+        std::string entry = "meshDirFull";
+        if (node[entry]) meshDirPathFull_ = node[entry].as<std::string>();
         else throw std::runtime_error("Input: missing " + entry);
 
         entry = "finalTime";
@@ -89,6 +100,7 @@ protected:
     std::string odeSchemeString_ = "";
     pressio::ode::StepScheme odeScheme_;
     int numSteps_;
+    pressiodemoapps::InviscidFluxReconstruction fluxOrder_ = {};
 
 public:
     ParserMono() = delete;
@@ -99,6 +111,7 @@ public:
     auto timeStepSize() const { return dt_; }
     auto odeScheme()    const { return odeScheme_; }
     auto numSteps()     const { return numSteps_; }
+    auto fluxOrder()    const { return fluxOrder_; }
 
 private:
     void parseImpl(YAML::Node & node)
@@ -109,14 +122,17 @@ private:
         std::string entry = "timeStepSize";
         if (node[entry]) dt_ = node[entry].as<ScalarType>();
 
-        // TODO: this should eventually not throw an error when Schwarz is updated to permit hetero schemes
+        // time stepping scheme
         entry = "odeScheme";
         if (node[entry]) {
             odeSchemeString_ = node[entry].as<std::string>();
             odeScheme_ = string_to_ode_scheme(odeSchemeString_);
         }
-        else {
-            throw std::runtime_error("Input: missing " + entry);
+
+        entry = "fluxOrder";
+        if (node[entry]) {
+            int fluxOrderInt = node[entry].as<int>();
+            fluxOrder_ = int_to_flux_order(fluxOrderInt);
         }
     }
 
@@ -129,12 +145,16 @@ class ParserRom: public ParserMono<ScalarType>
 
 protected:
 
-    bool isRom_ = false;
+    bool isRom_   = false;
+    std::string romAlgoName_        = "";
+    int romSize_                    = {};
+    std::string romBasisFileName_   = "";
+    std::string romTransFileName_   = "";
 
-    std::string romAlgoName_ = "";
-    int romSize_= {};
-    std::string romFullMeshPodBasisFileName_ = "";
-    std::string romAffineShiftFileName_ = "";
+    bool isHyper_ = false;
+    std::string meshDirPathHyper_     = "";
+    std::string hyperStencilFileName_ = "";
+    std::string hyperSampleFileName_  = "";
 
 public:
     ParserRom() = delete;
@@ -143,11 +163,16 @@ public:
         this->parseImpl(node);
     }
 
-    auto isRom()                    const { return isRom_; }
-    auto romAlgorithm()             const { return romAlgoName_; }
-    auto romModeCount()             const { return romSize_; }
-    auto romFullMeshPodBasisFile()  const { return romFullMeshPodBasisFileName_; }
-    auto romAffineShiftFile()	    const { return romAffineShiftFileName_; }
+    auto isRom()        const { return isRom_; }
+    auto romAlgorithm() const { return romAlgoName_; }
+    auto romModeCount() const { return romSize_; }
+    auto romBasisFile() const { return romBasisFileName_; }
+    auto romTransFile() const { return romTransFileName_; }
+
+    auto isHyper()          const { return isHyper_; }
+    auto meshDirHyper()     const { return meshDirPathHyper_; }
+    auto hyperSampleFile()  const { return hyperSampleFileName_; }
+    auto hyperStencilFile() const { return hyperStencilFileName_; }
 
 private:
     void parseImpl(YAML::Node & parentNode) {
@@ -157,19 +182,37 @@ private:
 
             std::string entry = "algorithm";
             if (romNode[entry]) romAlgoName_ = romNode[entry].as<std::string>();
-            else throw std::runtime_error("Input: rom: missing " + entry);
+            else throw std::runtime_error("Input rom: missing " + entry);
 
             entry = "numModes";
             if (romNode[entry]) romSize_ = romNode[entry].as<int>();
-            else throw std::runtime_error("Input: rom: missing " + entry);
+            else throw std::runtime_error("Input rom: missing " + entry);
 
-            entry = "fullMeshPodFile";
-            if (romNode[entry]) romFullMeshPodBasisFileName_ = romNode[entry].as<std::string>();
-            else throw std::runtime_error("Input: rom: missing " + entry);
+            entry = "basisFile";
+            if (romNode[entry]) romBasisFileName_ = romNode[entry].as<std::string>();
+            else throw std::runtime_error("Input rom: missing " + entry);
 
-            entry = "affineShiftFile";
-            if (romNode[entry]) romAffineShiftFileName_ = romNode[entry].as<std::string>();
-            else throw std::runtime_error("Input: rom: missing " + entry);
+            entry = "transFile";
+            if (romNode[entry]) romTransFileName_ = romNode[entry].as<std::string>();
+            else throw std::runtime_error("Input rom: missing " + entry);
+
+        }
+
+        auto hyperNode = parentNode["hyper"];
+        if (hyperNode) {
+            isHyper_ = true;
+
+            std::string entry = "meshDirHyper";
+            if (hyperNode[entry]) meshDirPathHyper_ = hyperNode[entry].as<std::string>();
+            else throw std::runtime_error("Input hyper: missing " + entry);
+
+            entry = "sampleFile";
+            if (hyperNode[entry]) hyperSampleFileName_ = hyperNode[entry].as<std::string>();
+            else throw std::runtime_error("Input hyper: missing " + entry);
+
+            entry = "stencilFile";
+            if (hyperNode[entry]) hyperStencilFileName_ = hyperNode[entry].as<std::string>();
+            else throw std::runtime_error("Input hyper: missing " + entry);
 
         }
     }
@@ -190,16 +233,18 @@ protected:
     int ndomains_;
     std::vector<ScalarType> dtVec_;
 
-    // TODO: not supported yet
-    // std::vector<std::string> odeSchemeStringVec_;
-    // std::vector<pressio::ode::StepScheme> odeSchemeVec_;
+    std::vector<std::string> odeSchemeStringVec_;
+    std::vector<pressio::ode::StepScheme> odeSchemeVec_;
 
     bool hasRom_ = false;
     std::vector<int> romSizeVec_;
-    std::string romPodBasisRoot_ = "";
-    std::string romAffineShiftRoot_ = "";
+    std::string romBasisRoot_ = "";
+    std::string romTransRoot_ = "";
 
-    bool additive_ = false;
+    bool hasHyper_ = false;
+    std::vector<std::string> hyperSampleFiles_;
+
+    pdaschwarz::SchwarzMode schwarzMode_ = pdaschwarz::SchwarzMode::Multiplicative;
     ScalarType relTol_ = 1e-11;
     ScalarType absTol_ = 1e-11;
     int convStepMax_ = 10;
@@ -210,16 +255,20 @@ public:
         this->parseImpl(node);
     }
 
-    auto isDecomp()             const { return isDecomp_; }
-    auto domTypeVec()           const { return domTypeVec_; }
-    auto dtVec()                const { return dtVec_; }
-    auto romModeCountVec()      const { return romSizeVec_; }
-    auto romPodBasisRoot()      const { return romPodBasisRoot_; }
-    auto romAffineShiftRoot()   const { return romAffineShiftRoot_; }
-    auto isAdditive()           const { return additive_; }
-    auto relTol()               const { return relTol_; }
-    auto absTol()               const { return absTol_; }
-    auto convStepMax()          const { return convStepMax_; }
+    auto isDecomp()         const { return isDecomp_; }
+    auto domTypeVec()       const { return domTypeVec_; }
+    auto dtVec()            const { return dtVec_; }
+
+    auto romModeCountVec()  const { return romSizeVec_; }
+    auto romBasisRoot()     const { return romBasisRoot_; }
+    auto romTransRoot()     const { return romTransRoot_; }
+
+    auto hyperSampleFiles()     const { return hyperSampleFiles_; }
+
+    auto schwarzMode()      const { return schwarzMode_; }
+    auto relTol()           const { return relTol_; }
+    auto absTol()           const { return absTol_; }
+    auto convStepMax()      const { return convStepMax_; }
 
 private:
     void parseImpl(YAML::Node & parentNode) {
@@ -229,10 +278,10 @@ private:
 
             std::string entry = "domainTypes";
             if (decompNode[entry]) domTypeVec_ = decompNode[entry].as<std::vector<std::string>>();
-            else throw std::runtime_error("Input: decomp: missing " + entry);
+            else throw std::runtime_error("Input decomp: missing " + entry);
 
             ndomains_ = domTypeVec_.size();
-            if (ndomains_ < 2) throw runtime_error("Input: decomp has fewer than 2 subdomains");
+            if (ndomains_ < 2) throw std::runtime_error("Input decomp: fewer than 2 subdomains");
 
             entry = "timeStepSize";
             if (decompNode[entry]) {
@@ -246,9 +295,12 @@ private:
                 throw std::runtime_error("Input: missing " + entry);
             }
 
-            // Additive is false by default
+            // Multiplicative Schwarz by default
             entry = "additive";
-            if (decompNode[entry]) additive_ = decompNode[entry].as<bool>();
+            if (decompNode[entry]) {
+                bool additive = decompNode[entry].as<bool>();
+                if (additive) schwarzMode_ = pdaschwarz::SchwarzMode::Additive;
+            }
 
             // Tolerances have default values
             entry = "relTol";
@@ -258,50 +310,68 @@ private:
             entry = "convStepMax";
             if (decompNode[entry]) convStepMax_ = decompNode[entry].as<ScalarType>();
 
-            // TODO: not supported yet
-            // entry = "odeScheme";
-            // if (decompNode[entry]) {
-            //     odeSchemeStringVec_ = decompNode[entry].as<std::vector<std::string>>();
-            //     odeSchemeVec_.resize(ndomains_);
-            //     for (int domIdx = 0; domIdx < ndomains_; ++domIdx) {
-            //         odeSchemeVec_[domIdx] = string_to_ode_scheme(odeSchemeStringVec_[domIdx]);
-            //     }
-            // }
-            // else if (parentNode[entry]) {
-            //     std::string odeString = parentNode[entry].as<std::string>();
-            //     odeSchemeStringVec_ = std::vector<std::string>(ndomains_, odeString);
-            //     auto odeScheme = string_to_ode_scheme(odeString);
-            //     odeSchemeVec_ = std::vector<pressio::ode::StepScheme>(ndomains_, odeScheme);
-            // }
-            // else {
-            //     throw std::runtime_error("Input: missing " + entry);
-            // }
+            entry = "odeScheme";
+            if (decompNode[entry]) {
+                odeSchemeStringVec_ = decompNode[entry].as<std::vector<std::string>>();
+                odeSchemeVec_.resize(ndomains_);
+                for (int domIdx = 0; domIdx < ndomains_; ++domIdx) {
+                    odeSchemeVec_[domIdx] = string_to_ode_scheme(odeSchemeStringVec_[domIdx]);
+                }
+            }
+            else if (parentNode[entry]) {
+                std::string odeString = parentNode[entry].as<std::string>();
+                odeSchemeStringVec_ = std::vector<std::string>(ndomains_, odeString);
+                auto odeScheme = string_to_ode_scheme(odeString);
+                odeSchemeVec_ = std::vector<pressio::ode::StepScheme>(ndomains_, odeScheme);
+            }
+            else {
+                throw std::runtime_error("Input: missing " + entry);
+            }
 
             // check if there are any ROM subdomains
             for (int domIdx = 0; domIdx < ndomains_; ++domIdx) {
-                if ((domTypeVec_[domIdx] == "Galerkin") || (domTypeVec_[domIdx] == "LSPG")) {
+                if ((domTypeVec_[domIdx] == "Galerkin") ||
+                    (domTypeVec_[domIdx] == "LSPG") ||
+                    (domTypeVec_[domIdx] == "LSPGHyper"))
+                {
                     hasRom_ = true;
                     break;
                 }
             }
+            
+            // check for hyper-reduction
+            if ((decompNode[""]))
 
             if (hasRom_) {
                 entry = "numModes";
                 if (decompNode[entry]) romSizeVec_ = decompNode[entry].as<std::vector<int>>();
-                else throw std::runtime_error("Input: decomp: missing " + entry);
+                else throw std::runtime_error("Input decomp: missing " + entry);
 
-                entry = "podBasisFileRoot";
-                if (decompNode[entry]) romPodBasisRoot_ = decompNode[entry].as<std::string>();
-                else throw std::runtime_error("Input: decomp: missing " + entry);
+                entry = "basisFileRoot";
+                if (decompNode[entry]) romBasisRoot_ = decompNode[entry].as<std::string>();
+                else throw std::runtime_error("Input decomp: missing " + entry);
 
-                entry = "affineShiftFileRoot";
-                if (decompNode[entry]) romAffineShiftRoot_ = decompNode[entry].as<std::string>();
-                else throw std::runtime_error("Input: decomp: missing " + entry);
+                entry = "transFileRoot";
+                if (decompNode[entry]) romTransRoot_ = decompNode[entry].as<std::string>();
+                else throw std::runtime_error("Input decomp: missing " + entry);
 
             }
             else {
                 romSizeVec_.resize(ndomains_, -1);
             }
+        }
+        else {
+            // check variables that MUST be set for monolithic
+            std::string entry = "odeScheme";
+            if (!parentNode[entry]) {
+                throw std::runtime_error("Input: missing " + entry);
+            }
+            
+            entry = "fluxOrder";
+            if (!parentNode[entry]) {
+                throw std::runtime_error("Input: missing " + entry);
+            }
+            
         }
     }
 
@@ -363,7 +433,7 @@ template <typename ScalarType>
 class Parser2DSwe: public ParserProblem<ScalarType>
 {
 
-    pda::Swe2d probId_ = {};
+    pressiodemoapps::Swe2d probId_ = {};
 
 public:
     Parser2DSwe() = delete;
@@ -383,10 +453,10 @@ private:
             throw std::runtime_error("Invalid problemName: " + this->problemName_);
         }
         if (this->isDecomp_) {
-            probId_ = pda::Swe2d::CustomBCs;
+            probId_ = pressiodemoapps::Swe2d::CustomBCs;
         }
         else {
-            probId_ = pda::Swe2d::SlipWall;
+            probId_ = pressiodemoapps::Swe2d::SlipWall;
         }
 
         // physical parameters
@@ -436,7 +506,7 @@ template <typename ScalarType>
 class Parser2DEuler: public ParserProblem<ScalarType>
 {
     // TODO: make sure icFlag_ is set correctly
-    pda::Euler2d probId_ = {};
+    pressiodemoapps::Euler2d probId_ = {};
 
 public:
     Parser2DEuler() = delete;
@@ -454,7 +524,7 @@ private:
         std::string entry;
 
         if (this->problemName_ == "Riemann") {
-            probId_ = pda::Euler2d::Riemann;
+            probId_ = pressiodemoapps::Euler2d::Riemann;
             if ((this->icFlag_ < 1) || (this->icFlag_ > 2)) {
                 throw std::runtime_error("Invalid icFlag for Riemann: " + std::to_string(this->icFlag_));
             }
@@ -480,7 +550,7 @@ private:
 
         }
         else if (this->problemName_ == "NormalShock") {
-            probId_ = pda::Euler2d::NormalShock;
+            probId_ = pressiodemoapps::Euler2d::NormalShock;
             // no icFlag for this case
 
             entry = "normalShockMach";

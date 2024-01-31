@@ -11,6 +11,7 @@ from pdas_exp.utils import check_meshdir, mkdir
 
 def main(
     equations,
+    order,
     problem,
     meshroot,
     nx,
@@ -33,6 +34,17 @@ def main(
     overlap=-1
 ):
 
+    check_params(phys_params_user, ic_params_user, equations, order, problem, icFlag)
+
+    if order == 1:
+        order_dir = "firstorder"
+    elif order == 3:
+        order_dir = "weno3"
+    elif order == 5:
+        order_dir = "weno5"
+    else:
+        raise ValueError(f"Invalid order: {order}")
+
     # generate output directories
     mkdir(outdir)
     if decomp:
@@ -48,15 +60,15 @@ def main(
     else:
         outdir = os.path.join(outdir, "1x1")
         mkdir(outdir)
-
-    check_params(phys_params_user, ic_params_user, equations, problem, icFlag)
+    outdir = os.path.join(outdir, order_dir)
+    mkdir(outdir)
 
     # check mesh(es)
-    meshdir = os.path.join(meshroot, f"{nx}x{ny}", "1x1")
+    meshdir = os.path.join(meshroot, f"{nx}x{ny}", "1x1", order_dir, "full")
     assert os.path.isdir(meshdir)
     check_meshdir(meshdir)
     if decomp:
-        meshdir_decomp = os.path.join(meshroot, f"{nx}x{ny}", f"{ndomX}x{ndomY}", f"overlap{overlap}")
+        meshdir_decomp = os.path.join(meshroot, f"{nx}x{ny}", f"{ndomX}x{ndomY}", f"overlap{overlap}", order_dir, "full")
         assert os.path.isfile(os.path.join(meshdir_decomp, "info_domain.dat"))
         for dom_idx in range(ndomains):
             check_meshdir(os.path.join(meshdir_decomp, f"domain_{dom_idx}"))
@@ -68,7 +80,7 @@ def main(
     nruns = len(params_combo)
     datadirs = []
     for run_idx, run_list in enumerate(params_combo):
-        rundir = os.path.join(rundir_base, "fom", f"{nx}x{ny}")
+        rundir = os.path.join(rundir_base, "fom", f"{nx}x{ny}", order_dir)
         dirname = ""
         for param_idx, param in enumerate(params_names_list):
             dirname += param + str(run_list[param_idx]) + "_"
@@ -149,6 +161,7 @@ if __name__ == "__main__":
 
     main(
         inputs["equations"],
+        inputs["order"],
         inputs["problem"],
         inputs["meshroot"],
         inputs["nx"],

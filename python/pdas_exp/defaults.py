@@ -10,6 +10,8 @@ problem_options = {
     "2d_euler": ["NormalShock", "Riemann"],
 }
 
+order_options = [1, 3, 5]
+
 phys_params_default = {
     "2d_swe": {
         "coriolis": -3.0,
@@ -54,9 +56,10 @@ ic_params_default = {
     },
 }
 
-def check_params(phys_params_user, ic_params_user, equations, problem, icFlag):
+def check_params(phys_params_user, ic_params_user, equations, order, problem, icFlag):
     assert equations in problem_options # valid equation
     assert problem in problem_options[equations] # valid problem
+    assert order in order_options # valid flux order of accuracy
     # valid physical parameters
     for param in phys_params_user:
         assert param in phys_params_default[equations]
