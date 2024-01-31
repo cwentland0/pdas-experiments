@@ -62,13 +62,10 @@ int main(int argc, char *argv[])
     const auto inputFile = check_and_get_inputfile(argc, argv);
     auto node = YAML::LoadFile(inputFile);
 
-    // "system" is strictly required
+    // "equations" is strictly required
     const auto eqsNode = node["equations"];
     if (!eqsNode){ throw std::runtime_error("Missing 'equations' in yaml input!"); }
     const auto eqsName = eqsNode.as<std::string>();
-
-    // TODO: generalize
-    const auto order = pda::InviscidFluxReconstruction::FirstOrder;
 
     // TODO: need to incorporate physical parameter settings
     if (eqsName == "2d_swe") {
@@ -79,8 +76,11 @@ int main(int argc, char *argv[])
             dispatch_decomp<app_t>(parser);
         }
         else {
-            const auto meshObj = pda::load_cellcentered_uniform_mesh_eigen<scalar_t>(parser.meshDir());
-            auto fomSystem = pda::create_problem_eigen(meshObj, parser.probId(), order, parser.icFlag(), parser.userParams());
+            const auto meshObj = pda::load_cellcentered_uniform_mesh_eigen<scalar_t>(parser.meshDirFull());
+            auto fomSystem = pda::create_problem_eigen(
+                meshObj, parser.probId(), parser.fluxOrder(),
+                parser.icFlag(), parser.userParams()
+            );
 
             dispatch_mono(fomSystem, parser);
         }
@@ -94,15 +94,11 @@ int main(int argc, char *argv[])
             dispatch_decomp<app_t>(parser);
         }
         else {
-            const auto meshObj = pda::load_cellcentered_uniform_mesh_eigen<scalar_t>(parser.meshDir());
-
-            // NOTE: this hack is required because there is no generic overload
-            //  to supply user parameters, since not all problems accept params like SWE.
-            //  Have to force it to use the CustomBC overload, which catches invalid problems.
-            using mesh_t = decltype(meshObj);
-            auto bcFunctor = pdas::BCFunctor<mesh_t>(pdas::BCType::HomogNeumann);
-            auto fomSystem = pda::create_problem_eigen(meshObj, parser.probId(), order,
-                bcFunctor, bcFunctor, bcFunctor, bcFunctor, parser.icFlag(), parser.userParams());
+            const auto meshObj = pda::load_cellcentered_uniform_mesh_eigen<scalar_t>(parser.meshDirFull());
+            auto fomSystem = pda::create_problem_eigen(
+                meshObj, parser.probId(), parser.fluxOrder(),
+                parser.icFlag(), parser.userParams()
+            );
 
             dispatch_mono(fomSystem, parser);
         }

@@ -12,6 +12,7 @@ ALGOS = ["FOM", "LSPG"]
 
 def main(
     equations,
+    order,
     problem,
     scheme,
     tf,
@@ -47,7 +48,16 @@ def main(
     assert os.path.isdir(outdir_base)
     assert os.path.isdir(meshroot)
 
-    check_params(phys_params_user, ic_params_user, equations, problem, icFlag)
+    check_params(phys_params_user, ic_params_user, equations, order, problem, icFlag)
+
+    if order == 1:
+        order_dir = "firstorder"
+    elif order == 3:
+        order_dir = "weno3"
+    elif order == 5:
+        order_dir = "weno5"
+    else:
+        raise ValueError(f"Invalid order: {order}")
 
     if runtype != "decomp":
         ndomX = 1
@@ -76,7 +86,7 @@ def main(
             nmodes = catchlist(nmodes, int, ndomains)
             rom_algo = catchlist(rom_algo, str, ndomains)
             assert all([algo in ALGOS for algo in rom_algo])
-            basis_dir = os.path.join(basis_dir, f"overlap{overlap}")
+            basis_dir = os.path.join(basis_dir, f"overlap{overlap}", order_dir)
             basis_root = os.path.join(basis_dir, basis_file)
             shift_root = os.path.join(basis_dir, shift_file)
             assert all([
@@ -90,6 +100,7 @@ def main(
         else:
             assert isinstance(nmodes, int)
             assert rom_algo in ALGOS
+            basis_dir = os.path.join(basis_dir, order_dir)
             basis_root = os.path.join(basis_dir, basis_file)
             shift_root = os.path.join(basis_dir, shift_file)
             assert os.path.isfile(basis_root + ".bin")
@@ -100,9 +111,10 @@ def main(
     assert os.path.isdir(meshdir)
 
     if runtype != "decomp":
+        meshdir = os.path.join(meshdir, order_dir)
         check_meshdir(meshdir)
     else:
-        meshdir = os.path.join(meshdir, f"overlap{overlap}")
+        meshdir = os.path.join(meshdir, f"overlap{overlap}", order_dir)
         assert os.path.isfile(os.path.join(meshdir, "info_domain.dat"))
         for dom_idx in range(ndomains):
             check_meshdir(os.path.join(meshdir, f"domain_{dom_idx}"))
@@ -129,6 +141,9 @@ def main(
             mkdir(rundir)
             rundir = os.path.join(rundir, f"overlap{overlap}")
             mkdir(rundir)
+
+        rundir = os.path.join(rundir, order_dir)
+        mkdir(rundir)
 
         # parameter directory
         dirname = ""
@@ -164,6 +179,7 @@ def main(
         with open(runfile, "w") as f:
 
             f.write(f"equations: \"{equations}\"\n")
+            f.write(f"order: {order}\n")
             f.write(f"problemName: \"{problem}\"\n")
             f.write(f"icFlag: {icFlag}\n")
             for param_idx, param in enumerate(params_names_list):
@@ -264,6 +280,7 @@ if __name__ == "__main__":
 
     main(
         inputs["equations"],
+        inputs["order"],
         inputs["problem"],
         inputs["scheme"],
         inputs["tf"],

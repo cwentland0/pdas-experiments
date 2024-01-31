@@ -49,6 +49,15 @@ else()
   endif()
 endif()
 
+if(NOT PRESSIO_SOURCE)
+  message(FATAL_ERROR "Must specify pressio source directory via PRESSIO_SOURCE")
+else()
+  if(NOT EXISTS ${PRESSIO_SOURCE})
+    message(NOTICE "PRESSIO_SOURCE: ${PRESSIO_SOURCE}")
+    message(FATAL_ERROR "PRESSIO_SOURCE does not exist or is not an absolute path")
+  endif()
+endif()
+
 if(NOT PDAS_SOURCE)
   message(FATAL_ERROR "Must specify pressiodemoapps-schwarz source directory via PDAS_SOURCE")
 else()
@@ -67,10 +76,23 @@ add_subdirectory(
 include_directories(
   ${PDA_SOURCE}/tpls/eigen3
   ${PDA_SOURCE}/include
-  ${PDA_SOURCE}/tests_cpp/pressio/include
+  ${PRESSIO_SOURCE}/include
   ${PDAS_SOURCE}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/tpls/yaml-cpp-0.7.0/include)
 
-add_executable(runner ${CMAKE_CURRENT_SOURCE_DIR}/src/runner.cc)
-target_link_libraries(runner PRIVATE yaml-cpp)
+link_libraries(stdc++fs)
+add_compile_definitions(PRESSIO_ENABLE_TPL_EIGEN PRESSIO_ENABLE_DEBUG_PRINT)
+
+# serial executable
+add_executable(runner_serial ${CMAKE_CURRENT_SOURCE_DIR}/src/runner.cc)
+target_link_libraries(runner_serial PRIVATE yaml-cpp)
+
+# parallel executable
+add_executable(runner_omp ${CMAKE_CURRENT_SOURCE_DIR}/src/runner.cc)
+target_link_libraries(runner_omp PRIVATE yaml-cpp)
+find_package(OpenMP)
+target_compile_definitions(runner_omp PRIVATE SCHWARZ_ENABLE_OMP)
+target_link_libraries(runner_omp PRIVATE OpenMP::OpenMP_CXX pthread)
+target_compile_options(runner_omp PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-march=native>)
+
