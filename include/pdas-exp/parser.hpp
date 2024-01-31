@@ -232,9 +232,8 @@ protected:
     std::vector<std::string> domTypeVec_;
     int ndomains_;
     std::vector<ScalarType> dtVec_;
-
-    std::vector<std::string> odeSchemeStringVec_;
     std::vector<pressio::ode::StepScheme> odeSchemeVec_;
+    std::vector<pressiodemoapps::InviscidFluxReconstruction> fluxOrderVec_;
 
     bool hasRom_ = false;
     std::vector<int> romSizeVec_;
@@ -258,12 +257,14 @@ public:
     auto isDecomp()         const { return isDecomp_; }
     auto domTypeVec()       const { return domTypeVec_; }
     auto dtVec()            const { return dtVec_; }
+    auto schemeVec()        const { return odeSchemeVec_; }
+    auto fluxOrderVec()     const { return fluxOrderVec_; }
 
     auto romModeCountVec()  const { return romSizeVec_; }
     auto romBasisRoot()     const { return romBasisRoot_; }
     auto romTransRoot()     const { return romTransRoot_; }
 
-    auto hyperSampleFiles()     const { return hyperSampleFiles_; }
+    auto hyperSampleFiles() const { return hyperSampleFiles_; }
 
     auto schwarzMode()      const { return schwarzMode_; }
     auto relTol()           const { return relTol_; }
@@ -302,6 +303,12 @@ private:
                 if (additive) schwarzMode_ = pdaschwarz::SchwarzMode::Additive;
             }
 
+#if defined SCHWARZ_ENABLE_OMP
+            if (schwarzMode_ == pdaschwarz::SchwarzMode::Multiplicative) {
+                throw std::runtime_error("Should not be running multiplicative Schwarz in parallel!");
+            }
+#endif
+
             // Tolerances have default values
             entry = "relTol";
             if (decompNode[entry]) relTol_ = decompNode[entry].as<ScalarType>();
@@ -312,15 +319,14 @@ private:
 
             entry = "odeScheme";
             if (decompNode[entry]) {
-                odeSchemeStringVec_ = decompNode[entry].as<std::vector<std::string>>();
+                auto odeSchemeStringVec = decompNode[entry].as<std::vector<std::string>>();
                 odeSchemeVec_.resize(ndomains_);
                 for (int domIdx = 0; domIdx < ndomains_; ++domIdx) {
-                    odeSchemeVec_[domIdx] = string_to_ode_scheme(odeSchemeStringVec_[domIdx]);
+                    odeSchemeVec_[domIdx] = string_to_ode_scheme(odeSchemeStringVec[domIdx]);
                 }
             }
             else if (parentNode[entry]) {
                 std::string odeString = parentNode[entry].as<std::string>();
-                odeSchemeStringVec_ = std::vector<std::string>(ndomains_, odeString);
                 auto odeScheme = string_to_ode_scheme(odeString);
                 odeSchemeVec_ = std::vector<pressio::ode::StepScheme>(ndomains_, odeScheme);
             }
@@ -328,19 +334,35 @@ private:
                 throw std::runtime_error("Input: missing " + entry);
             }
 
-            // check if there are any ROM subdomains
+            entry = "fluxOrder";
+            if (decompNode[entry]) {
+                auto fluxOrderIntVec = decompNode[entry].as<std::vector<int>>();
+                fluxOrderVec_.resize(ndomains_);
+                for (int domIdx = 0; domIdx < ndomains_; ++domIdx) {
+                    fluxOrderVec_[domIdx] = int_to_flux_order(fluxOrderIntVec[domIdx]);
+                }
+            }
+            else if (parentNode[entry]) {
+                int fluxOrderInt = parentNode[entry].as<int>();
+                auto fluxOrder = int_to_flux_order(fluxOrderInt);
+                fluxOrderVec_ = std::vector<pressiodemoapps::InviscidFluxReconstruction>(ndomains_, fluxOrder);
+            }
+            else {
+                throw std::runtime_error("Input: missing " + entry);
+            }
+
+            // check if there are any ROM/hyper-reduction subdomains
             for (int domIdx = 0; domIdx < ndomains_; ++domIdx) {
                 if ((domTypeVec_[domIdx] == "Galerkin") ||
                     (domTypeVec_[domIdx] == "LSPG") ||
                     (domTypeVec_[domIdx] == "LSPGHyper"))
                 {
                     hasRom_ = true;
-                    break;
+                    if (domTypeVec_[domIdx] == "LSPGHyper") {
+                        hasHyper_ = true;
+                    }
                 }
             }
-            
-            // check for hyper-reduction
-            if ((decompNode[""]))
 
             if (hasRom_) {
                 entry = "numModes";
@@ -355,6 +377,14 @@ private:
                 if (decompNode[entry]) romTransRoot_ = decompNode[entry].as<std::string>();
                 else throw std::runtime_error("Input decomp: missing " + entry);
 
+                if (hasHyper_) {
+                    entry = "sampleFiles";
+                    if (decompNode[entry]) hyperSampleFiles_ = decompNode[entry].as<std::vector<std::string>>();
+                    else throw std::runtime_error("Input decomp: missing " + entry);
+                }
+                else {
+                    hyperSampleFiles_.resize(ndomains_, "");
+                }
             }
             else {
                 romSizeVec_.resize(ndomains_, -1);
@@ -366,12 +396,12 @@ private:
             if (!parentNode[entry]) {
                 throw std::runtime_error("Input: missing " + entry);
             }
-            
+
             entry = "fluxOrder";
             if (!parentNode[entry]) {
                 throw std::runtime_error("Input: missing " + entry);
             }
-            
+
         }
     }
 

@@ -81,7 +81,18 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/tpls/yaml-cpp-0.7.0/include)
 
+link_libraries(stdc++fs)
 add_compile_definitions(PRESSIO_ENABLE_TPL_EIGEN PRESSIO_ENABLE_DEBUG_PRINT)
 
-add_executable(runner ${CMAKE_CURRENT_SOURCE_DIR}/src/runner.cc)
-target_link_libraries(runner PRIVATE yaml-cpp)
+# serial executable
+add_executable(runner_serial ${CMAKE_CURRENT_SOURCE_DIR}/src/runner.cc)
+target_link_libraries(runner_serial PRIVATE yaml-cpp)
+
+# parallel executable
+add_executable(runner_omp ${CMAKE_CURRENT_SOURCE_DIR}/src/runner.cc)
+target_link_libraries(runner_omp PRIVATE yaml-cpp)
+find_package(OpenMP)
+target_compile_definitions(runner_omp PRIVATE SCHWARZ_ENABLE_OMP)
+target_link_libraries(runner_omp PRIVATE OpenMP::OpenMP_CXX pthread)
+target_compile_options(runner_omp PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-march=native>)
+
