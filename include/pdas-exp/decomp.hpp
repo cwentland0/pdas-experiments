@@ -51,7 +51,6 @@ void run_decomp(ParserType & parser)
     const auto convStepMax = parser.convStepMax();
 
     int numSubiters;
-    std::chrono::time_point<std::chrono::high_resolution_clock> runtimeStart;
     double secsElapsed;
 
 #if defined SCHWARZ_ENABLE_OMP
@@ -64,13 +63,14 @@ void run_decomp(ParserType & parser)
     {
 
 #if defined SCHWARZ_ENABLE_OMP
-#pragma barrier
+#pragma omp barrier
 #pragma omp master
 #endif
         {
             std::cout << "Step " << outerStep << std::endl;
-            auto runtimeStart = std::chrono::high_resolution_clock::now();
         }
+        // this has to be outside the omp block
+        auto runtimeStart = std::chrono::high_resolution_clock::now();
 
         // compute contoller step until convergence
         if (parser.schwarzMode() == pdas::SchwarzMode::Multiplicative) {
@@ -101,9 +101,8 @@ void run_decomp(ParserType & parser)
         {
             // calculate step runtime, output
             const auto runtimeEnd = std::chrono::high_resolution_clock::now();
-            const auto nsDuration = std::chrono::duration_cast<std::chrono::nanoseconds>(runtimeEnd - runtimeStart);
-            secsElapsed = static_cast<double>(nsDuration.count());
-            obs_time(secsElapsed, numSubiters);
+            std::chrono::duration<double, std::milli> duration = runtimeEnd - runtimeStart;
+            obs_time(duration.count() * 1e-3, numSubiters);
 
             // output observer
             if ((outerStep % parser.stateSamplingFreq()) == 0) {

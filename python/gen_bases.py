@@ -50,7 +50,7 @@ def main(
     if decomp:
         assert ndomX >= 1
         assert ndomY >= 1
-        assert overlap >= 2
+        assert overlap >= 0
         ndomains = ndomX * ndomY
         assert ndomains >= 2
         outdir = os.path.join(outdir, f"{ndomX}x{ndomY}")
