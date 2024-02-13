@@ -5,12 +5,12 @@ import argparse
 
 import yaml
 
-from pdas_exp.defaults import check_params, get_params_combo
-from pdas_exp.utils import check_meshdir, mkdir, catchlist
+from defaults import check_params, get_params_combo
+from utils import check_meshdir, mkdir, catchlist
 
-ALGOS = ["FOM", "LSPG"]
+ALGOS = ["FOM", "LSPG", "LSPGHyper"]
 
-def main(
+def gen_runs(
     equations,
     order,
     problem,
@@ -24,9 +24,10 @@ def main(
     runtype,
     icFlag,
     runner,
+    loglevel,
     outdir_base,
-    phys_params_user={},
-    ic_params_user={},
+    phys_params_user=None,
+    ic_params_user=None,
     rom_algo=None,
     nmodes=None,
     basis_dir=None,
@@ -36,19 +37,33 @@ def main(
     ndomY=None,
     overlap=None,
     isadditive=False,
+    sampalgo=None,
+    sampperc=0.0,
     run=False,
 ):
 
     # ----- START CHECKS -----
 
+    assert loglevel in ["debug", "info", "off"]
     assert scheme in ["BDF1", "BDF2"]
     assert tf > 0.0
     assert sampfreq >= 1
-    assert runtype in ["fom", "rom", "decomp"]
+    assert runtype in [
+        "fom", "rom", "hyper",
+        "fom_decomp", "rom_decomp", "hyper_decomp",
+    ]
     assert os.path.isdir(outdir_base)
     assert os.path.isdir(meshroot)
 
+    if phys_params_user is None:
+        phys_params_user = {}
+    if ic_params_user is None:
+        ic_params_user = {}
     check_params(phys_params_user, ic_params_user, equations, order, problem, icFlag)
+
+    if "hyper" in runtype:
+        assert sampalgo in ["random", "eigenvec"]
+        assert sampperc > 0.0
 
     if order == 1:
         order_dir = "firstorder"
@@ -59,7 +74,7 @@ def main(
     else:
         raise ValueError(f"Invalid order: {order}")
 
-    if runtype != "decomp":
+    if "decomp" not in runtype:
         ndomX = 1
         ndomY = 1
         ndomains = 1
@@ -70,7 +85,7 @@ def main(
         ndomains = ndomX * ndomY
         assert ndomains > 1, "No point to decomp if 1x1"
         assert overlap is not None
-        assert overlap >= 2
+        assert overlap >= 0
         dt = catchlist(dt, float, ndomains)
 
     # handle nmodes, algorithm
@@ -81,8 +96,8 @@ def main(
         assert basis_file is not None
         assert shift_file is not None
 
-        basis_dir = os.path.join(basis_dir, f"{ndomX}x{ndomY}")
-        if runtype == "decomp":
+        basis_dir = os.path.join(basis_dir, f"{nx}x{ny}", f"{ndomX}x{ndomY}")
+        if "decomp" in runtype:
             nmodes = catchlist(nmodes, int, ndomains)
             rom_algo = catchlist(rom_algo, str, ndomains)
             assert all([algo in ALGOS for algo in rom_algo])
@@ -110,14 +125,26 @@ def main(
     meshdir = os.path.join(meshroot, f"{nx}x{ny}", f"{ndomX}x{ndomY}")
     assert os.path.isdir(meshdir)
 
-    if runtype != "decomp":
-        meshdir = os.path.join(meshdir, order_dir)
-        check_meshdir(meshdir)
+    if "decomp" not in runtype:
+        meshdir_full = os.path.join(meshdir, order_dir, "full")
+        check_meshdir(meshdir_full)
     else:
-        meshdir = os.path.join(meshdir, f"overlap{overlap}", order_dir)
-        assert os.path.isfile(os.path.join(meshdir, "info_domain.dat"))
+        meshdir_full = os.path.join(meshdir, f"overlap{overlap}", order_dir, "full")
+        assert os.path.isfile(os.path.join(meshdir_full, "info_domain.dat"))
         for dom_idx in range(ndomains):
-            check_meshdir(os.path.join(meshdir, f"domain_{dom_idx}"))
+            check_meshdir(os.path.join(meshdir_full, f"domain_{dom_idx}"))
+
+    if "hyper" in runtype:
+        if runtype == "hyper":
+            finaldir = f"modes_{nmodes}_samp_{sampperc}"
+            meshdir_hyper = os.path.join(meshdir, order_dir, sampalgo, finaldir)
+        elif runtype == "hyper_decomp":
+            raise ValueError("FIX FINALDIR")
+            meshdir_hyper = os.path.join(meshdir, f"overlap{overlap}", order_dir, sampalgo, f"samp_{sampperc}")
+        assert os.path.isdir(meshdir_hyper), meshdir_hyper
+
+        if runtype == "hyper_decomp":
+            sampfiles = [os.path.join(meshdir_hyper, f"domain_{dom_idx}", "sample_mesh_gids.dat") for dom_idx in range(ndomains)]
 
     # ----- END CHECKS -----
 
@@ -136,7 +163,7 @@ def main(
         mkdir(rundir)
 
         # decomp directory
-        if runtype == "decomp":
+        if "decomp" in runtype:
             rundir = os.path.join(rundir, f"{ndomX}x{ndomY}")
             mkdir(rundir)
             rundir = os.path.join(rundir, f"overlap{overlap}")
@@ -154,10 +181,16 @@ def main(
         mkdir(rundir)
 
         # ROM algo and mode count directory
-        if runtype == "rom":
+        if runtype in ["rom", "hyper"]:
             rundir = os.path.join(rundir, f"{rom_algo}{nmodes}")
             mkdir(rundir)
-        elif runtype == "decomp":
+            if runtype == "hyper":
+                rundir = os.path.join(rundir, sampalgo)
+                mkdir(rundir)
+                finaldir = f"modes_{nmodes}_samp_{sampperc}"
+                rundir = os.path.join(rundir, finaldir)
+                mkdir(rundir)
+        elif "decomp" in runtype:
             # additive/multiplicative directory
             if isadditive:
                 rundir = os.path.join(rundir, "additive")
@@ -174,40 +207,57 @@ def main(
             dirname = dirname[:-1]
             rundir = os.path.join(rundir, dirname)
             mkdir(rundir)
+            if runtype == "hyper_decomp":
+                rundir = os.path.join(rundir, sampalgo)
+                mkdir(rundir)
+                rundir = os.path.join(rundir, f"samp_{sampperc}")
+                mkdir(rundir)
 
         runfile = os.path.join(rundir, "input.yaml")
         with open(runfile, "w") as f:
 
+            f.write(f"loglevel: \"{loglevel}\"\n")
             f.write(f"equations: \"{equations}\"\n")
-            f.write(f"order: {order}\n")
+            f.write(f"fluxOrder: {order}\n")
             f.write(f"problemName: \"{problem}\"\n")
             f.write(f"icFlag: {icFlag}\n")
             for param_idx, param in enumerate(params_names_list):
                 f.write(f"{param}: {run_list[param_idx]}\n")
 
             # these may need to be modified?
-            f.write(f"meshDir: \"{meshdir}\"\n")
+            f.write(f"meshDirFull: \"{meshdir_full}\"\n")
             f.write(f"odeScheme: \"{scheme}\"\n")
             f.write(f"finalTime: {tf}\n")
             f.write(f"stateSamplingFreq: {sampfreq}\n")
-            if runtype != "decomp":
+            if "decomp" not in runtype:
                 f.write(f"timeStepSize: {dt}\n")
 
-            if runtype == "rom":
+            if runtype in ["rom", "hyper"]:
                 f.write("rom:\n")
                 f.write(f"  algorithm: \"{rom_algo}\"\n")
                 f.write(f"  numModes: {nmodes}\n")
-                f.write(f"  fullMeshPodFile: \"{basis_root}.bin\"\n")
-                f.write(f"  affineShiftFile: \"{shift_root}.bin\"\n")
+                f.write(f"  basisFile: \"{basis_root}.bin\"\n")
+                f.write(f"  transFile: \"{shift_root}.bin\"\n")
 
-            if runtype == "decomp":
+                if runtype == "hyper":
+                    f.write("hyper:\n")
+                    f.write(f"  meshDirHyper: \"{meshdir_hyper}\"\n")
+                    f.write(f"  sampleFile: \"{meshdir_hyper}/sample_mesh_gids.dat\"\n")
+                    f.write(f"  stencilFile: \"{meshdir_hyper}/stencil_mesh_gids.dat\"\n")
+
+
+            if "decomp" in runtype:
                 f.write("decomp:\n")
                 f.write(f"  domainTypes: {rom_algo}\n")
                 f.write(f"  timeStepSize: {dt}\n")
-                f.write(f"  numModes: {nmodes}\n")
                 f.write(f"  additive: {isadditive}\n")
-                f.write(f"  podBasisFileRoot: \"{basis_root}\"\n")
-                f.write(f"  affineShiftFileRoot: \"{shift_root}\"\n")
+
+                if runtype in ["rom_decomp", "hyper_decomp"]:
+                    f.write(f"  numModes: {nmodes}\n")
+                    f.write(f"  basisFileRoot: \"{basis_root}\"\n")
+                    f.write(f"  transFileRoot: \"{shift_root}\"\n")
+                    if runtype == "hyper_decomp":
+                        f.write(f"  sampleFiles: {sampfiles}\n")
 
         if run:
             print(f"Executing run at {rundir}")
@@ -266,8 +316,15 @@ if __name__ == "__main__":
         basis_file = None
         shift_file = None
 
+    if "hyper" in inputs["runtype"]:
+        sampalgo   = inputs["sampalgo"]
+        sampperc   = inputs["sampperc"]
+    else:
+        sampalgo = None
+        sampperc = None
+
     # handle decomp inputs
-    if inputs["runtype"] == "decomp":
+    if "decomp" in inputs["runtype"]:
         ndomX = inputs["ndomX"]
         ndomY = inputs["ndomY"]
         overlap = inputs["overlap"]
@@ -278,7 +335,7 @@ if __name__ == "__main__":
         overlap = None
         isadditive = None
 
-    main(
+    gen_runs(
         inputs["equations"],
         inputs["order"],
         inputs["problem"],
@@ -292,6 +349,7 @@ if __name__ == "__main__":
         inputs["runtype"],
         inputs["icFlag"],
         inputs["runner"],
+        inputs["loglevel"],
         inputs["outdir_base"],
         phys_params_user=phys_params_user,
         ic_params_user=ic_params_user,
@@ -304,6 +362,8 @@ if __name__ == "__main__":
         ndomY=ndomY,
         overlap=overlap,
         isadditive=isadditive,
+        sampalgo=sampalgo,
+        sampperc=sampperc,
         run=inputs["run"],
     )
 

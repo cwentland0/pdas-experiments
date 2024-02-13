@@ -11,6 +11,9 @@
 template<class AppType, class ParserType>
 void run_mono_lspg(AppType & system, ParserType & parser)
 {
+    pressio::log::initialize(pressio::logto::terminal);
+    pressio::log::setVerbosity({parser.loglevel()});
+
     namespace pda    = pressiodemoapps;
     namespace pdas   = pdaschwarz;
     namespace plspg  = pressio::rom::lspg;
@@ -77,7 +80,10 @@ void run_mono_lspg(AppType & system, ParserType & parser)
     // HYPER-REDUCED ROM
     else {
         const auto meshObjHyp = pda::load_cellcentered_uniform_mesh_eigen(parser.meshDirHyper());
-        auto systemHyp = pda::create_problem_eigen(meshObjHyp, parser.probId(), parser.fluxOrder(), parser.icFlag());
+        auto systemHyp = pda::create_problem_eigen(
+            meshObjHyp, parser.probId(), parser.fluxOrder(),
+            parser.icFlag(), parser.userParams()
+        );
 
         // read and define sampled trial space
         auto transFull = pdas::read_vector_from_binary<scalar_type>(
@@ -128,6 +134,7 @@ void run_mono_lspg(AppType & system, ParserType & parser)
 
     }
 
+    pressio::log::finalize();
 
 }
 

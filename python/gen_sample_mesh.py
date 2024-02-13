@@ -1,20 +1,32 @@
 from argparse import ArgumentParser
 
-from pdas.prom_utils import gen_sample_mesh
+from pdas.samp_utils import gen_sample_mesh
 
 parser = ArgumentParser()
-parser.add_argument("--algo",       dest="algo",       type=str)
-parser.add_argument("--fulldir",    dest="fulldir",    type=str)
-parser.add_argument("--outdir",     dest="outdir",     type=str)
-parser.add_argument("--sampperc",   dest="sampperc",   type=float)
-parser.add_argument("--sampbounds", dest="sampbounds", type=bool)
+parser.add_argument("--algo",           dest="algo",           type=str)
+parser.add_argument("--fulldir",        dest="fulldir",        type=str)
+parser.add_argument("--outdir",         dest="outdir",         type=str)
+parser.add_argument("--basisdir",       dest="basisdir",       type=str)
+parser.add_argument("--nmodes",         dest="nmodes",         type=int)
+parser.add_argument("--sampperc",       dest="sampperc",       type=float)
+parser.add_argument("--seedqdeim",      dest="seedqdeim",      default=False, action='store_true')
+parser.add_argument("--seedphysbounds", dest="seedphysbounds", default=False, action='store_true')
+parser.add_argument("--seeddombounds",  dest="seeddombounds",  default=False, action='store_true')
+parser.add_argument("--sampphysbounds", dest="sampphysbounds", default=False, action='store_true')
+parser.add_argument("--sampdombounds",  dest="sampdombounds",  default=False, action='store_true')
 args = parser.parse_args()
 
 gen_sample_mesh(
     args.algo,
     args.fulldir,
+    args.sampperc,
     args.outdir,
-    percpoints=args.sampperc,
+    basis_dir=args.basisdir,
+    nmodes=args.nmodes,
+    seed_qdeim=bool(args.seedqdeim),
+    seed_phys_bounds=bool(args.seedphysbounds),
+    seed_dom_bounds=bool(args.seeddombounds),
+    samp_phys_bounds=bool(args.sampphysbounds),
+    samp_dom_bounds=bool(args.sampdombounds),
     randseed=2,
-    samp_bounds=args.sampbounds,
 )

@@ -41,6 +41,7 @@ class ParserCommon
 {
 
 protected:
+    pressio::log::level loglevel_   = pressio::log::level::off;
     std::string meshDirPathFull_    = "";
     std::string meshDirPathHyper_   = "";
     int stateSamplingFreq_          = {};
@@ -61,6 +62,7 @@ public:
     auto problemName()          const { return problemName_; }
     auto icFlag()               const { return icFlag_; }
     auto userParams()           const { return userParams_; }
+    auto loglevel()             const { return loglevel_; }
 
 private:
     void parseImpl(YAML::Node & node)
@@ -85,6 +87,16 @@ private:
         entry = "icFlag";
         if (node[entry]) icFlag_ = node[entry].as<int>();
         else throw std::runtime_error("Input: missing " + entry);
+
+        // pressio logging, defaults to "off"
+        entry = "loglevel";
+        if (node[entry]) {
+            std::string logstr = node[entry].as<std::string>();
+            if (logstr == "debug") loglevel_ = pressio::log::level::debug;
+            else if (logstr == "info") loglevel_ = pressio::log::level::info;
+            else if (logstr == "off") loglevel_ = pressio::log::level::off;
+            else throw std::runtime_error("Invalid loglevel: " + logstr);
+        }
 
     }
 };

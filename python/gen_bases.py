@@ -47,6 +47,8 @@ def main(
 
     # generate output directories
     mkdir(outdir)
+    outdir = os.path.join(outdir, f"{nx}x{ny}")
+    mkdir(outdir)
     if decomp:
         assert ndomX >= 1
         assert ndomY >= 1

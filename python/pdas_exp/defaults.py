@@ -74,12 +74,16 @@ def get_params_combo(phys_params_user, ic_params_user, equations, problem, icFla
     for param in phys_params_default[equations]:
         params_names_list.append(param)
         if param in phys_params_user:
+            if not isinstance(phys_params_user[param], list):
+                phys_params_user[param] = [phys_params_user[param]]
             params_vals_list.append(phys_params_user[param])
         else:
             params_vals_list.append([phys_params_default[equations][param]])
     for param in ic_params_default[equations][problem][f"icFlag{icFlag}"]:
         params_names_list.append(param)
         if param in ic_params_user:
+            if not isinstance(ic_params_user[param], list):
+                ic_params_user[param] = [ic_params_user[param]]
             params_vals_list.append(ic_params_user[param])
         else:
             params_vals_list.append([ic_params_default[equations][problem][f"icFlag{icFlag}"][param]])
