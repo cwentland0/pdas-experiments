@@ -12,11 +12,11 @@ SAMPMESHDRIVER="/home/crwentl/research/code/pressio-proj/pressio-demoapps/meshin
 # 7: WENO5
 stencil=3
 
-decomp=0
+decomp=1
 hyper=0
 
-nx=100
-ny=100
+nx=200
+ny=200
 
 # decomp settings
 domx=2
@@ -39,18 +39,18 @@ sampphys=1
 sampdom=1
 
 # SWE
-#OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_swe/meshes"
-#xl="-5.0"
-#xu="5.0"
-#yl="-5.0"
-#yu="5.0"
+OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_swe/meshes"
+xl="-5.0"
+xu="5.0"
+yl="-5.0"
+yu="5.0"
 
 # Riemann
-OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_euler/meshes"
-xl="0.0"
-xu="1.0"
-yl="0.0"
-yu="1.0"
+# OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_euler/meshes"
+# xl="0.0"
+# xu="1.0"
+# yl="0.0"
+# yu="1.0"
 
 # ----- END USER INPUTS -----
 
@@ -59,7 +59,7 @@ if [ ${hyper} -eq 0 ]; then
     nmodes_arr=("")
 fi
 
-if [ ${hyper} -eq 0 ]; then
+if [ ${decomp} -eq 0 ]; then
     domx=1
     domy=1
 fi
@@ -104,17 +104,17 @@ mkdir ${OUTDIRBASE}
 for sampperc in "${sampperc_arr[@]}"; do
     for nmodes in "${nmodes_arr[@]}"; do
         if [ ${decomp} -eq 0 ]; then
-        
+
             # full mesh
             OUTDIR="${OUTDIRBASE}/${stencilDir}"
             mkdir ${OUTDIR}
             FULLDIR="${OUTDIR}/full"
             mkdir ${FULLDIR}
             python3 ${MESHDRIVER} --numCells ${nx} ${ny} --outDir ${FULLDIR} -s ${stencil} --bounds ${xl} ${xu} ${yl} ${yu}
-        
+
             # sample mesh, if requested
             if [ ${hyper} -eq 1 ]; then
-        
+
                 BASISDIR="${basisroot}/1x1/${stencilDir}"
                 if [ ${sampalgo} = "eigenvec" ]; then
                     BASISSTR="--basisdir ${BASISDIR}"

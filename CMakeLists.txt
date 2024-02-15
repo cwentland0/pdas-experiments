@@ -81,6 +81,7 @@ include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/tpls/yaml-cpp-0.7.0/include)
 
+add_compile_definitions(SCHWARZ_SAVE_TEMPDIR)
 link_libraries(stdc++fs)
 add_compile_definitions(PRESSIO_ENABLE_TPL_EIGEN PRESSIO_ENABLE_DEBUG_PRINT)
 

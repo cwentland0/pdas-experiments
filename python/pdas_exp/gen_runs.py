@@ -28,7 +28,7 @@ def gen_runs(
     outdir_base,
     phys_params_user=None,
     ic_params_user=None,
-    rom_algo=None,
+    solve_algo=None,
     nmodes=None,
     basis_dir=None,
     basis_file=None,
@@ -37,6 +37,7 @@ def gen_runs(
     ndomY=None,
     overlap=None,
     isadditive=False,
+    numprocs=1,
     sampalgo=None,
     sampperc=0.0,
     run=False,
@@ -86,35 +87,44 @@ def gen_runs(
         assert ndomains > 1, "No point to decomp if 1x1"
         assert overlap is not None
         assert overlap >= 0
+        assert numprocs > 0
+        if not isadditive:
+            assert numprocs == 1
+        os.environ["OMP_NUM_THREADS"] = str(numprocs)
         dt = catchlist(dt, float, ndomains)
 
     # handle nmodes, algorithm
     if runtype != "fom":
-        assert nmodes is not None
-        assert rom_algo is not None
-        assert basis_dir is not None
-        assert basis_file is not None
-        assert shift_file is not None
+        assert solve_algo is not None
 
-        basis_dir = os.path.join(basis_dir, f"{nx}x{ny}", f"{ndomX}x{ndomY}")
+        if runtype != "fom_decomp":
+            assert nmodes is not None
+            assert basis_dir is not None
+            assert basis_file is not None
+            assert shift_file is not None
+
         if "decomp" in runtype:
-            nmodes = catchlist(nmodes, int, ndomains)
-            rom_algo = catchlist(rom_algo, str, ndomains)
-            assert all([algo in ALGOS for algo in rom_algo])
-            basis_dir = os.path.join(basis_dir, f"overlap{overlap}", order_dir)
-            basis_root = os.path.join(basis_dir, basis_file)
-            shift_root = os.path.join(basis_dir, shift_file)
-            assert all([
-                os.path.isfile(f"{basis_root}_{dom_idx}.bin") \
-                for dom_idx in range(ndomains)
-            ]), f"Basis file not found at {basis_dir}"
-            assert all([
-                os.path.isfile(f"{shift_root}_{dom_idx}.bin") \
-                for dom_idx in range(ndomains)
-            ]), f"Affine shift file not found at {basis_dir}"
+            solve_algo = catchlist(solve_algo, str, ndomains)
+            assert all([algo in ALGOS for algo in solve_algo])
+            if runtype == "fom_decomp":
+                assert all([algo == "FOM" for algo in solve_algo])
+            else:
+                nmodes = catchlist(nmodes, int, ndomains)
+                basis_dir = os.path.join(basis_dir, f"{nx}x{ny}", f"{ndomX}x{ndomY}")
+                basis_dir = os.path.join(basis_dir, f"overlap{overlap}", order_dir)
+                basis_root = os.path.join(basis_dir, basis_file)
+                shift_root = os.path.join(basis_dir, shift_file)
+                assert all([
+                    os.path.isfile(f"{basis_root}_{dom_idx}.bin") \
+                    for dom_idx in range(ndomains)
+                ]), f"Basis file not found at {basis_dir}"
+                assert all([
+                    os.path.isfile(f"{shift_root}_{dom_idx}.bin") \
+                    for dom_idx in range(ndomains)
+                ]), f"Affine shift file not found at {basis_dir}"
         else:
             assert isinstance(nmodes, int)
-            assert rom_algo in ALGOS
+            assert solve_algo in ALGOS
             basis_dir = os.path.join(basis_dir, order_dir)
             basis_root = os.path.join(basis_dir, basis_file)
             shift_root = os.path.join(basis_dir, shift_file)
@@ -182,7 +192,7 @@ def gen_runs(
 
         # ROM algo and mode count directory
         if runtype in ["rom", "hyper"]:
-            rundir = os.path.join(rundir, f"{rom_algo}{nmodes}")
+            rundir = os.path.join(rundir, f"{solve_algo}{nmodes}")
             mkdir(rundir)
             if runtype == "hyper":
                 rundir = os.path.join(rundir, sampalgo)
@@ -200,10 +210,10 @@ def gen_runs(
 
             dirname = ""
             for dom_idx in range(ndomains):
-                if rom_algo[dom_idx] == "FOM":
+                if solve_algo[dom_idx] == "FOM":
                     dirname += "FOM_"
                 else:
-                    dirname += f"{rom_algo[dom_idx]}{nmodes[dom_idx]}_"
+                    dirname += f"{solve_algo[dom_idx]}{nmodes[dom_idx]}_"
             dirname = dirname[:-1]
             rundir = os.path.join(rundir, dirname)
             mkdir(rundir)
@@ -234,7 +244,7 @@ def gen_runs(
 
             if runtype in ["rom", "hyper"]:
                 f.write("rom:\n")
-                f.write(f"  algorithm: \"{rom_algo}\"\n")
+                f.write(f"  algorithm: \"{solve_algo}\"\n")
                 f.write(f"  numModes: {nmodes}\n")
                 f.write(f"  basisFile: \"{basis_root}.bin\"\n")
                 f.write(f"  transFile: \"{shift_root}.bin\"\n")
@@ -248,7 +258,7 @@ def gen_runs(
 
             if "decomp" in runtype:
                 f.write("decomp:\n")
-                f.write(f"  domainTypes: {rom_algo}\n")
+                f.write(f"  domainTypes: {solve_algo}\n")
                 f.write(f"  timeStepSize: {dt}\n")
                 f.write(f"  additive: {isadditive}\n")
 
@@ -302,15 +312,18 @@ if __name__ == "__main__":
     else:
         raise ValueError("ic_params_user must be a nested input")
 
-    # handle ROM inputs
     if inputs["runtype"] != "fom":
-        rom_algo = inputs["rom_algo"]
+        solve_algo = inputs["solve_algo"]
+    else:
+        solve_algo = "FOM"
+
+    # handle ROM inputs
+    if "fom" not in inputs["runtype"]:
         nmodes = inputs["nmodes"]
         basis_dir = inputs["basis_dir"]
         basis_file = inputs["basis_file"]
         shift_file = inputs["shift_file"]
     else:
-        rom_algo = None
         nmodes = None
         basis_dir = None
         basis_file = None
@@ -329,6 +342,7 @@ if __name__ == "__main__":
         ndomY = inputs["ndomY"]
         overlap = inputs["overlap"]
         isadditive = inputs["isadditive"]
+        numprocs = inputs["numprocs"]
     else:
         ndomX = None
         ndomY = None
@@ -353,7 +367,7 @@ if __name__ == "__main__":
         inputs["outdir_base"],
         phys_params_user=phys_params_user,
         ic_params_user=ic_params_user,
-        rom_algo=rom_algo,
+        solve_algo=solve_algo,
         nmodes=nmodes,
         basis_dir=basis_dir,
         basis_file=basis_file,
@@ -362,6 +376,7 @@ if __name__ == "__main__":
         ndomY=ndomY,
         overlap=overlap,
         isadditive=isadditive,
+        numprocs=numprocs,
         sampalgo=sampalgo,
         sampperc=sampperc,
         run=inputs["run"],
