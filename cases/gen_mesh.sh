@@ -1,5 +1,8 @@
 #!/bin/bash
 
+declare -a sampperc_arr
+declare -a nmodes_arr
+
 # ----- START USER INPUTS -----
 
 MESHDRIVER="/home/crwentl/research/code/pressio-proj/pressio-demoapps/meshing_scripts/create_full_mesh.py"
@@ -13,44 +16,52 @@ SAMPMESHDRIVER="/home/crwentl/research/code/pressio-proj/pressio-demoapps/meshin
 stencil=3
 
 decomp=1
-hyper=0
+hyper=1
 
-nx=200
-ny=200
+nx=300
+ny=300
 
 # decomp settings
 domx=2
 domy=2
-overlap=20
+overlap=0
 
 # hyper-reduction settings
 sampalgo="random"
-basisroot="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_swe/pod_bases/coriolis_0p0_to_n4p0"
+# sampalgo="eigenvec"
 
-#declare -a sampperc_arr=("0.0025" "0.005" "0.01" "0.025" "0.05")
-#declare -a nmodes_arr=(25 50 75 100)
-declare -a sampperc_arr=("0.01")
-declare -a nmodes_arr=("[75, 75, 75, 75]")
+# sampperc_arr=("0.001" "0.0025" "0.005" "0.01" "0.025" "0.05")
+# sampperc_arr=("0.005" "0.01" "0.025" "0.05")
+# nmodes_arr=(20 40 60 80 100)
+# nmodes_arr=(60 80 100)
+nmodes_arr=(300)
+sampperc_arr=("0.1")
+# nmodes_arr=(100)
 
-seedqdeim=1
+seedqdeim=0
 seedphys=0
-seeddom=0
-sampphys=1
-sampdom=1
+seedphysrate=0
+seeddom=1
+seeddomrate=1
+sampphys=0
+sampdom=0
+
 
 # SWE
-OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_swe/meshes"
-xl="-5.0"
-xu="5.0"
-yl="-5.0"
-yu="5.0"
+# basisroot="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_swe/pod_bases/coriolis_0p0_to_n4p0"
+# OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_swe/meshes"
+# xl="-5.0"
+# xu="5.0"
+# yl="-5.0"
+# yu="5.0"
 
 # Riemann
-# OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_euler/meshes"
-# xl="0.0"
-# xu="1.0"
-# yl="0.0"
-# yu="1.0"
+basisroot="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_euler/pod_bases/topRightPress_1p0_to_2p0"
+OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_euler/meshes"
+xl="0.0"
+xu="1.0"
+yl="0.0"
+yu="1.0"
 
 # ----- END USER INPUTS -----
 
@@ -66,7 +77,7 @@ fi
 
 # get and create output directories
 OUTDIRBASE="${OUTDIRBASE}/${nx}x${ny}"
-mkdir ${OUTDIRBASE}
+mkdir ${OUTDIRBASE} || (echo "I can't create directory ${OUTDIRBASE}" && exit)
 
 if [ ${stencil} -eq 3 ]; then
     stencilDir="firstorder"
@@ -86,9 +97,19 @@ if [ ${seedqdeim} -eq 1 ]; then
 fi
 if [ ${seedphys} -eq 1 ]; then
     FLAGSTR="${FLAGSTR} --seedphysbounds"
+    if [ ${seedphysrate} -lt 1 ]; then
+        echo "Invalid seedphysrate: ${seedphysrate}"
+        exit
+    fi
+    FLAGSTR="${FLAGSTR} --seedphysrate ${seedphysrate}"
 fi
 if [ ${seeddom} -eq 1 ]; then
     FLAGSTR="${FLAGSTR} --seeddombounds"
+    if [ ${seeddomrate} -lt 1 ]; then
+        echo "Invalid seeddomrate: ${seeddomrate}"
+        exit
+    fi
+    FLAGSTR="${FLAGSTR} --seeddomrate ${seeddomrate}"
 fi
 if [ ${sampphys} -eq 1 ]; then
     FLAGSTR="${FLAGSTR} --sampphysbounds"
@@ -98,7 +119,7 @@ if [ ${sampdom} -eq 1 ]; then
 fi
 
 OUTDIRBASE="${OUTDIRBASE}/${domx}x${domy}"
-mkdir ${OUTDIRBASE}
+mkdir -p ${OUTDIRBASE}
 
 # execute
 for sampperc in "${sampperc_arr[@]}"; do
@@ -107,43 +128,31 @@ for sampperc in "${sampperc_arr[@]}"; do
 
             # full mesh
             OUTDIR="${OUTDIRBASE}/${stencilDir}"
-            mkdir ${OUTDIR}
+            mkdir -p ${OUTDIR}
             FULLDIR="${OUTDIR}/full"
-            mkdir ${FULLDIR}
+            mkdir -p ${FULLDIR}
             python3 ${MESHDRIVER} --numCells ${nx} ${ny} --outDir ${FULLDIR} -s ${stencil} --bounds ${xl} ${xu} ${yl} ${yu}
 
             # sample mesh, if requested
             if [ ${hyper} -eq 1 ]; then
 
-                BASISDIR="${basisroot}/1x1/${stencilDir}"
-                if [ ${sampalgo} = "eigenvec" ]; then
-                    BASISSTR="--basisdir ${BASISDIR}"
-                    MODESTR="--nmodes ${nmodes}"
-                else
-                    if [ ${seedqdeim} -eq 1 ]; then
-                        BASISSTR="--basisdir ${BASISDIR}"
-                        MODESTR="--nmodes ${nmodes}"
-                    else
-                        BASISSTR=""
-                        MODESTR=""
-                    fi
-                fi
+                BASISDIR="${basisroot}/${nx}x${ny}/1x1/${stencilDir}"
+                BASISSTR="--basisdir ${BASISDIR}"
+                MODESTR="--nmodes ${nmodes}"
         
                 SAMPDIR="${OUTDIR}/${sampalgo}"
-                mkdir ${SAMPDIR}
-                if [ ${sampalgo} = "random" ]; then
-                    if [ ${seedqdeim} -eq 1 ]; then
-                        SAMPDIR="${SAMPDIR}/modes_${nmodes}_samp_${sampperc}"
-                    else
-                        SAMPDIR="${SAMPDIR}/samp_${sampperc}"
-                    fi
-                else
-                    SAMPDIR="${SAMPDIR}/modes_${nmodes}_samp_${sampperc}"
+                mkdir -p ${SAMPDIR}
+                SAMPDIR="${SAMPDIR}/modes_${nmodes}_samp_${sampperc}"
+                if [ ${seedqdeim} -eq 1 ]; then
+                    SAMPDIR="${SAMPDIR}_qdeim"
                 fi
-                #if [ ${sampbounds} -eq 1 ]; then
-                #    SAMPDIR="${SAMPDIR}_bounds"
-                #fi
-                #mkdir ${SAMPDIR}
+                if [ ${seedphys} -eq 1 ]; then
+                    SAMPDIR="${SAMPDIR}_phys${seedphysrate}"
+                fi
+                if [ ${seeddom} -eq 1 ]; then
+                    SAMPDIR="${SAMPDIR}_dom${seeddomrate}"
+                fi
+                mkdir -p ${SAMPDIR}
         
                 python3 ${SAMPDRIVER} --algo ${sampalgo} --fulldir ${FULLDIR} --outdir ${SAMPDIR} --sampperc ${sampperc} ${BASISSTR} ${MODESTR} ${FLAGSTR}
                 python3 ${SAMPMESHDRIVER} --fullMeshDir ${FULLDIR} --sampleMeshIndices ${SAMPDIR}/sample_mesh_gids.dat --outDir ${SAMPDIR}
@@ -152,42 +161,34 @@ for sampperc in "${sampperc_arr[@]}"; do
         else
             # full mesh
             OUTDIR="${OUTDIRBASE}/overlap${overlap}"
-            mkdir ${OUTDIR}
+            mkdir -p ${OUTDIR}
             OUTDIR="${OUTDIR}/${stencilDir}"
-            mkdir ${OUTDIR}
+            mkdir -p ${OUTDIR}
             FULLDIR="${OUTDIR}/full"
-            mkdir ${FULLDIR}
+            mkdir -p ${FULLDIR}
         
             python3 ${DECOMPDRIVER} --meshScript ${MESHDRIVER} -n ${nx} ${ny} --outDir ${FULLDIR} -s ${stencil} --bounds ${xl} ${xu} ${yl} ${yu} --numDoms ${domx} ${domy} --overlap ${overlap}
         
             # sample mesh, if requested
             if [ ${hyper} -eq 1 ]; then
 
-                BASISDIR="${basisroot}/${domx}x${domy}/${stencilDir}"
-                if [ ${sampalgo} = "eigenvec" ]; then
-                    BASISSTR="--basisdir ${BASISDIR}"
-                    MODESTR="--nmodes ${nmodes}"
-                else
-                    if [ ${seedqdeim} -eq 1 ]; then
-                        BASISSTR="--basisdir ${BASISDIR}"
-                        MODESTR="--nmodes ${nmodes}"
-                    else
-                        BASISSTR=""
-                        MODESTR=""
-                    fi
-                fi
+                BASISDIR="${basisroot}/${nx}x${ny}/${domx}x${domy}/overlap${overlap}/${stencilDir}"
+                BASISSTR="--basisdir ${BASISDIR}"
+                MODESTR="--nmodes ${nmodes}"
 
                 SAMPDIR="${OUTDIR}/${sampalgo}"
-                mkdir ${SAMPDIR}
-                if [ ${sampalgo} = "random" ]; then
-                    if [ ${seedqdeim} -eq 1 ]; then
-                        SAMPDIR="${SAMPDIR}/modes_${nmodes}_samp_${sampperc}"
-                    else
-                        SAMPDIR="${SAMPDIR}/samp_${sampperc}"
-                    fi
-                else
-                    SAMPDIR="${SAMPDIR}/modes_${nmodes}_samp_${sampperc}"
+                mkdir -p ${SAMPDIR}
+                SAMPDIR="${SAMPDIR}/modes_${nmodes}_samp_${sampperc}"
+                if [ ${seedqdeim} -eq 1 ]; then
+                    SAMPDIR="${SAMPDIR}_qdeim"
                 fi
+                if [ ${seedphys} -eq 1 ]; then
+                    SAMPDIR="${SAMPDIR}_phys${seedphysrate}"
+                fi
+                if [ ${seeddom} -eq 1 ]; then
+                    SAMPDIR="${SAMPDIR}_dom${seeddomrate}"
+                fi
+                mkdir -p ${SAMPDIR}
 
                 python3 ${SAMPDRIVER} --algo ${sampalgo} --fulldir ${FULLDIR} --outdir ${SAMPDIR} --sampperc ${sampperc} ${BASISSTR} ${MODESTR} ${FLAGSTR}
             fi

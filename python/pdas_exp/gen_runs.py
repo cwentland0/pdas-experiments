@@ -40,6 +40,8 @@ def gen_runs(
     numprocs=1,
     sampalgo=None,
     sampperc=0.0,
+    physrate=0,
+    domrate=0,
     run=False,
 ):
 
@@ -125,11 +127,11 @@ def gen_runs(
         else:
             assert isinstance(nmodes, int)
             assert solve_algo in ALGOS
-            basis_dir = os.path.join(basis_dir, order_dir)
+            basis_dir = os.path.join(basis_dir, f"{nx}x{ny}", "1x1", order_dir)
             basis_root = os.path.join(basis_dir, basis_file)
             shift_root = os.path.join(basis_dir, shift_file)
-            assert os.path.isfile(basis_root + ".bin")
-            assert os.path.isfile(shift_root + ".bin")
+            assert os.path.isfile(basis_root + ".bin"), f"No basis at {basis_root}.bin"
+            assert os.path.isfile(shift_root + ".bin"), f"No shift at {shift_root}.bin"
 
     # check that mesh exists
     meshdir = os.path.join(meshroot, f"{nx}x{ny}", f"{ndomX}x{ndomY}")
@@ -149,8 +151,12 @@ def gen_runs(
             finaldir = f"modes_{nmodes}_samp_{sampperc}"
             meshdir_hyper = os.path.join(meshdir, order_dir, sampalgo, finaldir)
         elif runtype == "hyper_decomp":
-            raise ValueError("FIX FINALDIR")
-            meshdir_hyper = os.path.join(meshdir, f"overlap{overlap}", order_dir, sampalgo, f"samp_{sampperc}")
+            assert all([modeval == nmodes[0] for modeval in nmodes]), "Can't handle different modes in each hyp-red domain yet"
+            meshdir_hyper = os.path.join(meshdir, f"overlap{overlap}", order_dir, sampalgo, f"modes_{nmodes[0]}_samp_{sampperc}")
+        if physrate > 0:
+            meshdir_hyper += f"_phys{physrate}"
+        if domrate > 0:
+            meshdir_hyper += f"_dom{domrate}"
         assert os.path.isdir(meshdir_hyper), meshdir_hyper
 
         if runtype == "hyper_decomp":
@@ -198,6 +204,10 @@ def gen_runs(
                 rundir = os.path.join(rundir, sampalgo)
                 mkdir(rundir)
                 finaldir = f"modes_{nmodes}_samp_{sampperc}"
+                if physrate > 0:
+                    finaldir += f"_phys{physrate}"
+                if domrate > 0:
+                    finaldir += f"_dom{domrate}"
                 rundir = os.path.join(rundir, finaldir)
                 mkdir(rundir)
         elif "decomp" in runtype:
@@ -220,7 +230,12 @@ def gen_runs(
             if runtype == "hyper_decomp":
                 rundir = os.path.join(rundir, sampalgo)
                 mkdir(rundir)
-                rundir = os.path.join(rundir, f"samp_{sampperc}")
+                assert all([modeval == nmodes[0] for modeval in nmodes]), "Can't handle different modes in each hyp-red domain yet"
+                rundir = os.path.join(rundir, f"modes_{nmodes[0]}_samp_{sampperc}")
+                if physrate > 0:
+                    rundir += f"_phys{physrate}"
+                if domrate > 0:
+                    rundir += f"_dom{domrate}"
                 mkdir(rundir)
 
         runfile = os.path.join(rundir, "input.yaml")
@@ -332,9 +347,19 @@ if __name__ == "__main__":
     if "hyper" in inputs["runtype"]:
         sampalgo   = inputs["sampalgo"]
         sampperc   = inputs["sampperc"]
+        try:
+            physrate = inputs["physrate"]
+        except KeyError:
+            physrate = 0
+        try:
+            domrate = inputs["domrate"]
+        except KeyError:
+            domrate = 0
     else:
         sampalgo = None
         sampperc = None
+        physrate = 0
+        domrate = 0
 
     # handle decomp inputs
     if "decomp" in inputs["runtype"]:
@@ -348,6 +373,7 @@ if __name__ == "__main__":
         ndomY = None
         overlap = None
         isadditive = None
+        numprocs = 1
 
     gen_runs(
         inputs["equations"],
@@ -379,6 +405,8 @@ if __name__ == "__main__":
         numprocs=numprocs,
         sampalgo=sampalgo,
         sampperc=sampperc,
+        physrate=physrate,
+        domrate=domrate,
         run=inputs["run"],
     )
 
