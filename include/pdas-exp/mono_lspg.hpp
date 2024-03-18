@@ -115,7 +115,15 @@ void run_mono_lspg(AppType & system, ParserType & parser)
         auto problem = plspg::create_unsteady_problem(parser.odeScheme(), trialSpaceHyp, systemHyp, hrUpdater);
         auto stepperObj = problem.lspgStepper();
 
-        auto NonLinSolver = pressio::create_gauss_newton_solver(stepperObj, linSolverObj);
+        // nonlinear solver
+        auto weigher = pdaschwarz::Weigher<scalar_type>(
+            parser.gpodWeigherType(),
+            parser.gpodBasisFile(),
+            parser.hyperSampleFile(),
+            parser.gpodModeCount(),
+            numDofsPerCell
+        );
+        auto NonLinSolver = pressio::create_gauss_newton_solver(stepperObj, linSolverObj, weigher);
         // TODO: generalize this
         NonLinSolver.setStopCriterion(pnlins::Stop::WhenAbsolutel2NormOfGradientBelowTolerance);
         NonLinSolver.setStopTolerance(1e-5);

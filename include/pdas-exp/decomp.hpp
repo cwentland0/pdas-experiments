@@ -31,6 +31,9 @@ void run_decomp(ParserType & parser)
         parser.romModeCountVec(),
         parser.icFlag(),
         parser.hyperSampleFiles(),
+        parser.gpodWeigherTypeStr(),
+        parser.gpodBasisRoot(),
+        parser.gpodModeCountVec(),
         parser.userParams()
     );
     auto dtVec = parser.dtVec();

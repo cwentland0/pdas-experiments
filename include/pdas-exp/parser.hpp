@@ -168,6 +168,11 @@ protected:
     std::string hyperStencilFileName_ = "";
     std::string hyperSampleFileName_  = "";
 
+    // gappy POD
+    std::string gpodWeigherType_   = "";
+    std::string gpodBasisFileName_ = "";
+    int gpodSize_                  = {};
+
 public:
     ParserRom() = delete;
     ParserRom(YAML::Node & node)
@@ -185,6 +190,10 @@ public:
     auto meshDirHyper()     const { return meshDirPathHyper_; }
     auto hyperSampleFile()  const { return hyperSampleFileName_; }
     auto hyperStencilFile() const { return hyperStencilFileName_; }
+
+    auto gpodWeigherType() const { return gpodWeigherType_; }
+    auto gpodBasisFile()   const { return gpodBasisFileName_; }
+    auto gpodModeCount()   const { return gpodSize_; }
 
 private:
     void parseImpl(YAML::Node & parentNode) {
@@ -226,6 +235,18 @@ private:
             if (hyperNode[entry]) hyperStencilFileName_ = hyperNode[entry].as<std::string>();
             else throw std::runtime_error("Input hyper: missing " + entry);
 
+            entry = "gpodWeigherType";
+            if (hyperNode[entry]) gpodWeigherType_ = hyperNode[entry].as<std::string>();
+            else throw std::runtime_error("Input hyper: missing " + entry);
+
+            entry = "numModesGpod";
+            if (hyperNode[entry]) gpodSize_ = hyperNode[entry].as<int>();
+            else throw std::runtime_error("Input rom: missing " + entry);
+
+            entry = "basisFileGpod";
+            if (hyperNode[entry]) gpodBasisFileName_ = hyperNode[entry].as<std::string>();
+            else throw std::runtime_error("Input rom: missing " + entry);
+
         }
     }
 
@@ -254,6 +275,9 @@ protected:
 
     bool hasHyper_ = false;
     std::vector<std::string> hyperSampleFiles_;
+    std::string gpodWeigherTypeStr_   = "";
+    std::string gpodBasisRoot_     = "";
+    std::vector<int> gpodSizeVec_  = {};
 
     pdaschwarz::SchwarzMode schwarzMode_ = pdaschwarz::SchwarzMode::Multiplicative;
     ScalarType relTol_ = 1e-11;
@@ -276,7 +300,10 @@ public:
     auto romBasisRoot()     const { return romBasisRoot_; }
     auto romTransRoot()     const { return romTransRoot_; }
 
-    auto hyperSampleFiles() const { return hyperSampleFiles_; }
+    auto hyperSampleFiles()   const { return hyperSampleFiles_; }
+    auto gpodWeigherTypeStr() const { return gpodWeigherTypeStr_; }
+    auto gpodBasisRoot()      const { return gpodBasisRoot_; }
+    auto gpodModeCountVec()   const { return gpodSizeVec_; }
 
     auto schwarzMode()      const { return schwarzMode_; }
     auto relTol()           const { return relTol_; }
@@ -393,6 +420,19 @@ private:
                     entry = "sampleFiles";
                     if (decompNode[entry]) hyperSampleFiles_ = decompNode[entry].as<std::vector<std::string>>();
                     else throw std::runtime_error("Input decomp: missing " + entry);
+
+                    entry = "gpodWeigherType";
+                    if (decompNode[entry]) gpodWeigherTypeStr_ = decompNode[entry].as<std::string>();
+                    else throw std::runtime_error("Input decomp: missing " + entry);
+
+                    entry = "gpodBasisRoot";
+                    if (decompNode[entry]) gpodBasisRoot_ = decompNode[entry].as<std::string>();
+                    else throw std::runtime_error("Input decomp: missing " + entry);
+
+                    entry = "gpodSizeVec";
+                    if (decompNode[entry]) gpodSizeVec_ = decompNode[entry].as<std::vector<int>>();
+                    else throw std::runtime_error("Input decomp: missing " + entry);
+
                 }
                 else {
                     hyperSampleFiles_.resize(ndomains_, "");
