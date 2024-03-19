@@ -39,6 +39,9 @@ def gen_runs(
     isadditive=False,
     numprocs=1,
     sampalgo=None,
+    gpod_weigher=None,
+    basis_dir_gpod=None,
+    nmodes_gpod=None,
     sampperc=0.0,
     physrate=0,
     domrate=0,
@@ -65,6 +68,7 @@ def gen_runs(
     check_params(phys_params_user, ic_params_user, equations, order, problem, icFlag)
 
     if "hyper" in runtype:
+        assert gpod_weigher in ["identity", "gappy_pod"]
         assert sampalgo in ["random", "eigenvec"]
         assert sampperc > 0.0
 
@@ -147,12 +151,22 @@ def gen_runs(
             check_meshdir(os.path.join(meshdir_full, f"domain_{dom_idx}"))
 
     if "hyper" in runtype:
+
         if runtype == "hyper":
-            finaldir = f"modes_{nmodes}_samp_{sampperc}"
+            assert isinstance(nmodes_gpod, int)
+            finaldir = f"modes_{nmodes_gpod}_samp_{sampperc}"
             meshdir_hyper = os.path.join(meshdir, order_dir, sampalgo, finaldir)
+            basis_dir_gpod = os.path.join(basis_dir_gpod, f"{nx}x{ny}", "1x1", order_dir)
+            basis_root_gpod = os.path.join(basis_dir_gpod, basis_file)
+
         elif runtype == "hyper_decomp":
-            assert all([modeval == nmodes[0] for modeval in nmodes]), "Can't handle different modes in each hyp-red domain yet"
-            meshdir_hyper = os.path.join(meshdir, f"overlap{overlap}", order_dir, sampalgo, f"modes_{nmodes[0]}_samp_{sampperc}")
+            nmodes_gpod = catchlist(nmodes_gpod, int, ndomains)
+            assert all([modeval == nmodes_gpod[0] for modeval in nmodes_gpod]), "Can't handle different modes in each hyp-red domain yet"
+            meshdir_hyper = os.path.join(meshdir, f"overlap{overlap}", order_dir, sampalgo, f"modes_{nmodes_gpod[0]}_samp_{sampperc}")
+            basis_dir_gpod = os.path.join(basis_dir_gpod, f"{nx}x{ny}", f"{ndomX}x{ndomY}")
+            basis_dir_gpod = os.path.join(basis_dir_gpod, f"overlap{overlap}", order_dir)
+            basis_root_gpod = os.path.join(basis_dir_gpod, basis_file)
+
         if physrate > 0:
             meshdir_hyper += f"_phys{physrate}"
         if domrate > 0:
@@ -203,7 +217,9 @@ def gen_runs(
             if runtype == "hyper":
                 rundir = os.path.join(rundir, sampalgo)
                 mkdir(rundir)
-                finaldir = f"modes_{nmodes}_samp_{sampperc}"
+                rundir = os.path.join(rundir, gpod_weigher)
+                mkdir(rundir)
+                finaldir = f"modes_{nmodes_gpod}_samp_{sampperc}"
                 if physrate > 0:
                     finaldir += f"_phys{physrate}"
                 if domrate > 0:
@@ -230,8 +246,10 @@ def gen_runs(
             if runtype == "hyper_decomp":
                 rundir = os.path.join(rundir, sampalgo)
                 mkdir(rundir)
-                assert all([modeval == nmodes[0] for modeval in nmodes]), "Can't handle different modes in each hyp-red domain yet"
-                rundir = os.path.join(rundir, f"modes_{nmodes[0]}_samp_{sampperc}")
+                rundir = os.path.join(rundir, gpod_weigher)
+                mkdir(rundir)
+                assert all([modeval == nmodes_gpod[0] for modeval in nmodes_gpod]), "Can't handle different modes in each hyp-red domain yet"
+                rundir = os.path.join(rundir, f"modes_{nmodes_gpod[0]}_samp_{sampperc}")
                 if physrate > 0:
                     rundir += f"_phys{physrate}"
                 if domrate > 0:
@@ -269,6 +287,9 @@ def gen_runs(
                     f.write(f"  meshDirHyper: \"{meshdir_hyper}\"\n")
                     f.write(f"  sampleFile: \"{meshdir_hyper}/sample_mesh_gids.dat\"\n")
                     f.write(f"  stencilFile: \"{meshdir_hyper}/stencil_mesh_gids.dat\"\n")
+                    f.write(f"  gpodWeigherType: \"{gpod_weigher}\"\n")
+                    f.write(f"  numModesGpod: {nmodes_gpod}\n")
+                    f.write(f"  basisFileGpod: \"{basis_root_gpod}.bin\"\n")
 
 
             if "decomp" in runtype:
@@ -283,6 +304,9 @@ def gen_runs(
                     f.write(f"  transFileRoot: \"{shift_root}\"\n")
                     if runtype == "hyper_decomp":
                         f.write(f"  sampleFiles: {sampfiles}\n")
+                        f.write(f"  gpodWeigherType: \"{gpod_weigher}\"\n")
+                        f.write(f"  gpodBasisRoot: \"{basis_root_gpod}\"\n")
+                        f.write(f"  gpodSizeVec: {nmodes_gpod}\n")
 
         if run:
             print(f"Executing run at {rundir}")
@@ -345,8 +369,11 @@ if __name__ == "__main__":
         shift_file = None
 
     if "hyper" in inputs["runtype"]:
-        sampalgo   = inputs["sampalgo"]
-        sampperc   = inputs["sampperc"]
+        sampalgo        = inputs["sampalgo"]
+        sampperc        = inputs["sampperc"]
+        gpod_weigher    = inputs["gpod_weigher"]
+        nmodes_gpod     = inputs["nmodes_gpod"]
+        basis_dir_gpod = inputs["basis_dir_gpod"]
         try:
             physrate = inputs["physrate"]
         except KeyError:
@@ -358,6 +385,9 @@ if __name__ == "__main__":
     else:
         sampalgo = None
         sampperc = None
+        gpod_weigher = None
+        nmodes_gpod = None
+        basis_dir_gpod = None
         physrate = 0
         domrate = 0
 
@@ -405,6 +435,9 @@ if __name__ == "__main__":
         numprocs=numprocs,
         sampalgo=sampalgo,
         sampperc=sampperc,
+        gpod_weigher=gpod_weigher,
+        nmodes_gpod=nmodes_gpod,
+        basis_dir_gpod=basis_dir_gpod,
         physrate=physrate,
         domrate=domrate,
         run=inputs["run"],
