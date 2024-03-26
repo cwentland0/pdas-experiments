@@ -113,6 +113,7 @@ protected:
     pressio::ode::StepScheme odeScheme_;
     int numSteps_;
     pressiodemoapps::InviscidFluxReconstruction fluxOrder_ = {};
+    std::string icFile_ = "";
 
 public:
     ParserMono() = delete;
@@ -124,6 +125,7 @@ public:
     auto odeScheme()    const { return odeScheme_; }
     auto numSteps()     const { return numSteps_; }
     auto fluxOrder()    const { return fluxOrder_; }
+    auto icFile()       const { return icFile_; }
 
 private:
     void parseImpl(YAML::Node & node)
@@ -145,6 +147,11 @@ private:
         if (node[entry]) {
             int fluxOrderInt = node[entry].as<int>();
             fluxOrder_ = int_to_flux_order(fluxOrderInt);
+        }
+
+        entry = "icFile";
+        if (node[entry]) {
+            icFile_ = node[entry].as<std::string>();
         }
     }
 
@@ -267,6 +274,7 @@ protected:
     std::vector<ScalarType> dtVec_;
     std::vector<pressio::ode::StepScheme> odeSchemeVec_;
     std::vector<pressiodemoapps::InviscidFluxReconstruction> fluxOrderVec_;
+    std::string icFileRoot_ = "";
 
     bool hasRom_ = false;
     std::vector<int> romSizeVec_;
@@ -295,6 +303,7 @@ public:
     auto dtVec()            const { return dtVec_; }
     auto schemeVec()        const { return odeSchemeVec_; }
     auto fluxOrderVec()     const { return fluxOrderVec_; }
+    auto icFileRoot()       const { return icFileRoot_; }
 
     auto romModeCountVec()  const { return romSizeVec_; }
     auto romBasisRoot()     const { return romBasisRoot_; }
@@ -389,6 +398,10 @@ private:
             else {
                 throw std::runtime_error("Input: missing " + entry);
             }
+
+            // initial condition file (optional), either full-order (for any simulation) or reduced-order (for PROM and HPROM)
+            entry = "icFileRoot";
+            if (decompNode[entry]) icFileRoot_ = decompNode[entry].as<std::string>();
 
             // check if there are any ROM/hyper-reduction subdomains
             for (int domIdx = 0; domIdx < ndomains_; ++domIdx) {

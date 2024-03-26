@@ -30,6 +30,7 @@ void run_decomp(ParserType & parser)
         parser.romBasisRoot(),
         parser.romModeCountVec(),
         parser.icFlag(),
+        parser.icFileRoot(),
         parser.hyperSampleFiles(),
         parser.gpodWeigherTypeStr(),
         parser.gpodBasisRoot(),

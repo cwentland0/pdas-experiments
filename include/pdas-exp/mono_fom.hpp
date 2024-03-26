@@ -13,10 +13,24 @@ void run_mono_fom(AppType & system, ParserType & parser)
     pressio::log::setVerbosity({parser.loglevel()});
 
     using app_t = AppType;
+    using scalar_t = typename app_t::scalar_type;
     using state_t = typename app_t::state_type;
     using jacob_t = typename app_t::jacobian_type;
 
+    // initial condition
     state_t state = system.initialCondition();
+    std::string icFile = parser.icFile();
+    if (!(icFile.empty())) {
+        // load from file
+        auto instate = pdaschwarz::read_vector_from_binary<scalar_t>(icFile);
+        int nrows = instate.rows();
+        if (nrows == state.rows()) {
+            state = instate;
+        }
+        else {
+            throw std::runtime_error("Invalid icFile dimensions: " + std::to_string(nrows));
+        }
+    }
 
     const auto odeScheme = parser.odeScheme();
     auto stepperObj = pressio::ode::create_implicit_stepper(odeScheme, system);
@@ -30,7 +44,7 @@ void run_mono_fom(AppType & system, ParserType & parser)
     StateObserver Obs(parser.stateSamplingFreq());
     RuntimeObserver Obs_run("runtime.bin");
 
-    const auto startTime = static_cast<typename app_t::scalar_type>(0.0);
+    const auto startTime = static_cast<scalar_t>(0.0);
     auto runtimeStart = std::chrono::high_resolution_clock::now();
     pressio::ode::advance_n_steps(
         stepperObj, state, startTime,

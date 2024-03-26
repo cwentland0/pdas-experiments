@@ -38,6 +38,7 @@ def gen_runs(
     overlap=None,
     isadditive=False,
     numprocs=1,
+    ic_index=None,
     sampalgo=None,
     gpod_weigher=None,
     basis_dir_gpod=None,
@@ -60,6 +61,8 @@ def gen_runs(
     ]
     assert os.path.isdir(outdir_base)
     assert os.path.isdir(meshroot)
+    if ic_index is not None:
+        assert ic_index >= 0
 
     if phys_params_user is None:
         phys_params_user = {}
@@ -203,12 +206,23 @@ def gen_runs(
         mkdir(rundir)
 
         # parameter directory
-        dirname = ""
+        paramdir = ""
         for param_idx, param in enumerate(params_names_list):
-            dirname += param + str(run_list[param_idx]) + "_"
-        dirname = dirname[:-1]
-        rundir = os.path.join(rundir, dirname)
+            paramdir += param + str(run_list[param_idx]) + "_"
+        paramdir = paramdir[:-1]
+        rundir = os.path.join(rundir, paramdir)
         mkdir(rundir)
+
+        # find initial conditions file, if requested
+        if ic_index is not None:
+            ic_dir = os.path.join(outdir_base, "ic_files", f"{nx}x{ny}", f"{ndomX}x{ndomY}")
+            if "decomp" in runtype:
+                ic_dir  = os.path.join(ic_dir, f"overlap{overlap}", order_dir, paramdir)
+                ic_file = f"ic_file_idx{ic_index}_dom"
+            else:
+                ic_dir = os.path.join(ic_dir, order_dir, paramdir)
+                ic_file = f"ic_file_idx{ic_index}.bin"
+            ic_file = os.path.join(ic_dir, ic_file)
 
         # ROM algo and mode count directory
         if runtype in ["rom", "hyper"]:
@@ -274,6 +288,8 @@ def gen_runs(
             f.write(f"stateSamplingFreq: {sampfreq}\n")
             if "decomp" not in runtype:
                 f.write(f"timeStepSize: {dt}\n")
+                if ic_index is not None:
+                    f.write(f"icFile: \"{ic_file}\"\n")
 
             if runtype in ["rom", "hyper"]:
                 f.write("rom:\n")
@@ -291,12 +307,13 @@ def gen_runs(
                     f.write(f"  numModesGpod: {nmodes_gpod}\n")
                     f.write(f"  basisFileGpod: \"{basis_root_gpod}.bin\"\n")
 
-
             if "decomp" in runtype:
                 f.write("decomp:\n")
                 f.write(f"  domainTypes: {solve_algo}\n")
                 f.write(f"  timeStepSize: {dt}\n")
                 f.write(f"  additive: {isadditive}\n")
+                if ic_index is not None:
+                    f.write(f"  icFileRoot: \"{ic_file}\"")
 
                 if runtype in ["rom_decomp", "hyper_decomp"]:
                     f.write(f"  numModes: {nmodes}\n")
@@ -355,6 +372,12 @@ if __name__ == "__main__":
         solve_algo = inputs["solve_algo"]
     else:
         solve_algo = "FOM"
+
+    # initial conditions
+    try:
+        ic_index = inputs["ic_index"]
+    except KeyError:
+        ic_index = None
 
     # handle ROM inputs
     if "fom" not in inputs["runtype"]:
@@ -433,6 +456,7 @@ if __name__ == "__main__":
         overlap=overlap,
         isadditive=isadditive,
         numprocs=numprocs,
+        ic_index=ic_index,
         sampalgo=sampalgo,
         sampperc=sampperc,
         gpod_weigher=gpod_weigher,

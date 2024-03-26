@@ -139,7 +139,7 @@ for sampperc in "${sampperc_arr[@]}"; do
                 BASISDIR="${basisroot}/${nx}x${ny}/1x1/${stencilDir}"
                 BASISSTR="--basisdir ${BASISDIR}"
                 MODESTR="--nmodes ${nmodes}"
-        
+
                 SAMPDIR="${OUTDIR}/${sampalgo}"
                 mkdir -p ${SAMPDIR}
                 SAMPDIR="${SAMPDIR}/modes_${nmodes}_samp_${sampperc}"
@@ -149,15 +149,12 @@ for sampperc in "${sampperc_arr[@]}"; do
                 if [ ${seedphys} -eq 1 ]; then
                     SAMPDIR="${SAMPDIR}_phys${seedphysrate}"
                 fi
-                if [ ${seeddom} -eq 1 ]; then
-                    SAMPDIR="${SAMPDIR}_dom${seeddomrate}"
-                fi
                 mkdir -p ${SAMPDIR}
-        
+
                 python3 ${SAMPDRIVER} --algo ${sampalgo} --fulldir ${FULLDIR} --outdir ${SAMPDIR} --sampperc ${sampperc} ${BASISSTR} ${MODESTR} ${FLAGSTR}
                 python3 ${SAMPMESHDRIVER} --fullMeshDir ${FULLDIR} --sampleMeshIndices ${SAMPDIR}/sample_mesh_gids.dat --outDir ${SAMPDIR}
             fi
-        
+
         else
             # full mesh
             OUTDIR="${OUTDIRBASE}/overlap${overlap}"
@@ -166,9 +163,9 @@ for sampperc in "${sampperc_arr[@]}"; do
             mkdir -p ${OUTDIR}
             FULLDIR="${OUTDIR}/full"
             mkdir -p ${FULLDIR}
-        
+
             python3 ${DECOMPDRIVER} --meshScript ${MESHDRIVER} -n ${nx} ${ny} --outDir ${FULLDIR} -s ${stencil} --bounds ${xl} ${xu} ${yl} ${yu} --numDoms ${domx} ${domy} --overlap ${overlap}
-        
+
             # sample mesh, if requested
             if [ ${hyper} -eq 1 ]; then
 
@@ -192,7 +189,7 @@ for sampperc in "${sampperc_arr[@]}"; do
 
                 python3 ${SAMPDRIVER} --algo ${sampalgo} --fulldir ${FULLDIR} --outdir ${SAMPDIR} --sampperc ${sampperc} ${BASISSTR} ${MODESTR} ${FLAGSTR}
             fi
-        
+
         fi
     done
 done

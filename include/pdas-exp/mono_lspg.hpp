@@ -32,6 +32,7 @@ void run_mono_lspg(AppType & system, ParserType & parser)
     StateObserver Obs(parser.stateSamplingFreq());
     RuntimeObserver Obs_run("runtime.bin");
     const auto startTime = static_cast<typename app_t::scalar_type>(0.0);
+    std::string icFile = parser.icFile();
 
     // UNSAMPLED ROM
     if (!parser.isHyper()) {
@@ -44,16 +45,36 @@ void run_mono_lspg(AppType & system, ParserType & parser)
         const auto trialSpace = pressio::rom::create_trial_column_subspace<
             reduced_state_type>(std::move(basis), std::move(trans), true);
 
-        // project initial condition
-        auto u = pressio::ops::clone(state);
-        pressio::ops::update(
-            u, 0.,
-            state, 1,
-            trialSpace.translationVector(), -1);
+        // initial conditions
         auto reducedState = trialSpace.createReducedState();
-        pressio::ops::product(::pressio::transpose(),
-            1., trialSpace.basisOfTranslatedSpace(), u,
-            0., reducedState);
+        if (icFile.empty()) {
+            // project full state initial conditions
+            auto u = pressio::ops::clone(state);
+            pressio::ops::update(
+                u, 0.,
+                state, 1,
+                trialSpace.translationVector(), -1);
+            pressio::ops::product(::pressio::transpose(),
+                1., trialSpace.basisOfTranslatedSpace(), u,
+                0., reducedState);
+        }
+        else {
+            // load from file
+            auto instate = pdas::read_vector_from_binary<scalar_type>(icFile);
+            int nrows = instate.rows();
+            if (nrows == reducedState.rows()) {
+                reducedState = instate;
+            }
+            else if (nrows == state.rows()) {
+                // project full state initial conditions
+                auto u = pressio::ops::clone(instate);
+                pressio::ops::update(u, 0., instate, 1, trialSpace.translationVector(), -1);
+                pressio::ops::product(::pressio::transpose(), 1., trialSpace.basis(), u, 0., reducedState);
+            }
+            else {
+                throw std::runtime_error("Invalid icFile dimensions: " + std::to_string(nrows));
+            }
+        }
 
         auto problem = pressio::rom::lspg::create_unsteady_problem(
             parser.odeScheme(), trialSpace, system);
@@ -98,16 +119,37 @@ void run_mono_lspg(AppType & system, ParserType & parser)
         const auto trialSpaceHyp = pressio::rom::create_trial_column_subspace<
             reduced_state_type>(std::move(basisHyp), std::move(transHyp), true);
 
-        // project initial condition
-        auto u = pressio::ops::clone(state);
-        pressio::ops::update(
-            u, 0.,
-            state, 1,
-            trialSpaceFull.translationVector(), -1);
+        // initial condition
         auto reducedState = trialSpaceFull.createReducedState();
-        pressio::ops::product(::pressio::transpose(),
-            1., trialSpaceFull.basisOfTranslatedSpace(), u,
-            0., reducedState);
+        if (icFile.empty()) {
+            // project full state initial conditions
+            auto u = pressio::ops::clone(state);
+            pressio::ops::update(
+                u, 0.,
+                state, 1,
+                trialSpaceFull.translationVector(), -1);
+            pressio::ops::product(::pressio::transpose(),
+                1., trialSpaceFull.basisOfTranslatedSpace(), u,
+                0., reducedState);
+        }
+        else {
+            // load from file
+            auto instate = pdas::read_vector_from_binary<scalar_type>(icFile);
+            int nrows = instate.rows();
+            if (nrows == reducedState.rows()) {
+                reducedState = instate;
+            }
+            else if (nrows == state.rows()) {
+                // project full state initial conditions
+                auto u = pressio::ops::clone(instate);
+                pressio::ops::update(u, 0., instate, 1, trialSpaceFull.translationVector(), -1);
+                pressio::ops::product(::pressio::transpose(), 1., trialSpaceFull.basis(), u, 0., reducedState);
+            }
+            else {
+                throw std::runtime_error("Invalid icFile dimensions: " + std::to_string(nrows));
+            }
+        }
+
 
         pdas::HypRedUpdater<scalar_type> hrUpdater(numDofsPerCell, parser.hyperStencilFile(), parser.hyperSampleFile());
 
