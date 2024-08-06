@@ -10,6 +10,21 @@ template<class AppType, class ParserType>
 void run_decomp(ParserType & parser)
 {
 
+#if defined SCHWARZ_ENABLE_OMP
+#pragma omp barrier
+#pragma omp master
+#endif
+    {
+        if (parser.loglevel() != pressio::log::level::off) {
+            pressio::log::initialize(pressio::logto::file, parser.logfile());
+            pressio::log::setVerbosity({parser.loglevel()});
+        }
+        else {
+            pressio::log::initialize(pressio::logto::terminal);
+            pressio::log::setVerbosity({parser.loglevel()});
+        }
+    }
+
     namespace pda  = pressiodemoapps;
     namespace pdas = pdaschwarz;
     namespace pode = pressio::ode;
@@ -20,12 +35,13 @@ void run_decomp(ParserType & parser)
 
     auto schemeVec = parser.schemeVec();
     auto fluxOrderVec = parser.fluxOrderVec();
+    auto domTypeVec = parser.domTypeVec();
     auto subdomains = pdas::create_subdomains<AppType>(
         meshObjsFull, *tiling,
         parser.probId(),
         schemeVec,
         fluxOrderVec,
-        parser.domTypeVec(),
+        domTypeVec,
         parser.romTransRoot(),
         parser.romBasisRoot(),
         parser.romModeCountVec(),
@@ -44,7 +60,12 @@ void run_decomp(ParserType & parser)
     std::vector<StateObserver> obsVec((*decomp.m_tiling).count());
     for (int domIdx = 0; domIdx < (*decomp.m_tiling).count(); ++domIdx) {
         obsVec[domIdx] = StateObserver("state_snapshots_" + std::to_string(domIdx) + ".bin", parser.stateSamplingFreq());
-        obsVec[domIdx](::pressio::ode::StepCount(0), 0.0, *decomp.m_subdomainVec[domIdx]->getStateFull());
+        if (domTypeVec[domIdx] == "FOM") {
+            obsVec[domIdx](::pressio::ode::StepCount(0), 0.0, *decomp.m_subdomainVec[domIdx]->getStateFull());
+        }
+        else {
+            obsVec[domIdx](::pressio::ode::StepCount(0), 0.0, *decomp.m_subdomainVec[domIdx]->getStateReduced());
+        }
     }
     RuntimeObserver obs_time("runtime.bin");
 
@@ -112,7 +133,12 @@ void run_decomp(ParserType & parser)
             if ((outerStep % parser.stateSamplingFreq()) == 0) {
                 const auto stepWrap = pode::StepCount(outerStep);
                 for (int domIdx = 0; domIdx < (*decomp.m_tiling).count(); ++domIdx) {
-                    obsVec[domIdx](stepWrap, time, *decomp.m_subdomainVec[domIdx]->getStateFull());
+                    if (domTypeVec[domIdx] == "FOM") {
+                        obsVec[domIdx](stepWrap, time, *decomp.m_subdomainVec[domIdx]->getStateFull());
+                    }
+                    else {
+                        obsVec[domIdx](stepWrap, time, *decomp.m_subdomainVec[domIdx]->getStateReduced());
+                    }
                 }
             }
         }

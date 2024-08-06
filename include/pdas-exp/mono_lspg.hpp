@@ -11,8 +11,14 @@
 template<class AppType, class ParserType>
 void run_mono_lspg(AppType & system, ParserType & parser)
 {
-    pressio::log::initialize(pressio::logto::terminal);
-    pressio::log::setVerbosity({parser.loglevel()});
+    if (parser.loglevel() != pressio::log::level::off) {
+        pressio::log::initialize(pressio::logto::file, parser.logfile());
+        pressio::log::setVerbosity({parser.loglevel()});
+    }
+    else {
+        pressio::log::initialize(pressio::logto::terminal);
+        pressio::log::setVerbosity({parser.loglevel()});
+    }
 
     namespace pda    = pressiodemoapps;
     namespace pdas   = pdaschwarz;
@@ -82,8 +88,10 @@ void run_mono_lspg(AppType & system, ParserType & parser)
 
         auto NonLinSolver = pressio::create_gauss_newton_solver(stepperObj, linSolverObj);
         // TODO: generalize this
-        NonLinSolver.setStopCriterion(pnlins::Stop::WhenAbsolutel2NormOfGradientBelowTolerance);
-        NonLinSolver.setStopTolerance(1e-5);
+        // NonLinSolver.setStopCriterion(pnlins::Stop::WhenAbsolutel2NormOfGradientBelowTolerance);
+        // NonLinSolver.setStopTolerance(1e-5);
+        NonLinSolver.setStopCriterion(pnlins::Stop::WhenAbsolutel2NormOfCorrectionBelowTolerance);
+        NonLinSolver.setStopTolerance(1e-7);
 
         // execute
         auto runtimeStart = std::chrono::high_resolution_clock::now();
@@ -167,8 +175,10 @@ void run_mono_lspg(AppType & system, ParserType & parser)
         );
         auto NonLinSolver = pressio::create_gauss_newton_solver(stepperObj, linSolverObj, weigher);
         // TODO: generalize this
-        NonLinSolver.setStopCriterion(pnlins::Stop::WhenAbsolutel2NormOfGradientBelowTolerance);
-        NonLinSolver.setStopTolerance(1e-5);
+        // NonLinSolver.setStopCriterion(pnlins::Stop::WhenAbsolutel2NormOfGradientBelowTolerance);
+        // NonLinSolver.setStopTolerance(1e-5);
+        NonLinSolver.setStopCriterion(pnlins::Stop::WhenAbsolutel2NormOfCorrectionBelowTolerance);
+        NonLinSolver.setStopTolerance(1e-7);
 
         // execute
         auto runtimeStart = std::chrono::high_resolution_clock::now();

@@ -17,8 +17,10 @@ nvars = 4
 ndomX = 2
 ndomY = 2
 
-overlap_list = [0, 10, 20]
-param_list = [1.0, 1.125, 1.25, 1.375, 1.5, 1.625, 1.75, 1.875, 2.0]
+overlap_list = [2, 4]
+#param_list = [1.375]
+param_list = [0.5, 0.625, 0.75, 0.875, 1.0, 1.125, 1.25, 1.375, 1.5]
+#param_list = [0.5, 0.625, 0.75, 0.875, 1.0, 1.125, 1.25, 1.375, 1.5, 1.625, 1.75, 1.875, 2.0]
 
 casename = "gamma1.4_riemannTopRightPressure{param}_riemannTopRightXVel0.0_riemannTopRightYVel0.0_riemannTopRightDensity1.5_riemannBotLeftPressure0.029"
 
@@ -29,6 +31,11 @@ datafile = "state_snapshots.bin"
 def mkdir(dirpath):
     if not os.path.isdir(dirpath):
         os.mkdir(dirpath)
+
+if (ndomX * ndomY > 1):
+    assert len(overlap_list) > 0
+else:
+    assert len(overlap_list) == 0
 
 datadir_base = os.path.join(caseroot, "runs", "fom", f"{ncellsX}x{ncellsY}", order)
 

@@ -9,8 +9,14 @@
 template<class AppType, class ParserType>
 void run_mono_fom(AppType & system, ParserType & parser)
 {
-    pressio::log::initialize(pressio::logto::terminal);
-    pressio::log::setVerbosity({parser.loglevel()});
+    if (parser.loglevel() != pressio::log::level::off) {
+        pressio::log::initialize(pressio::logto::file, parser.logfile());
+        pressio::log::setVerbosity({parser.loglevel()});
+    }
+    else {
+        pressio::log::initialize(pressio::logto::terminal);
+        pressio::log::setVerbosity({parser.loglevel()});
+    }
 
     using app_t = AppType;
     using scalar_t = typename app_t::scalar_type;
@@ -39,7 +45,9 @@ void run_mono_fom(AppType & system, ParserType & parser)
         pressio::linearsolvers::iterative::Bicgstab, jacob_t>;
     lin_solver_t linSolverObj;
     auto NonLinSolver = pressio::create_newton_solver(stepperObj, linSolverObj);
-    NonLinSolver.setStopTolerance(1e-5);
+    // NonLinSolver.setStopTolerance(1e-5);
+    NonLinSolver.setStopCriterion(pressio::nonlinearsolvers::Stop::WhenAbsolutel2NormOfCorrectionBelowTolerance);
+    NonLinSolver.setStopTolerance(1e-7);
 
     StateObserver Obs(parser.stateSamplingFreq());
     RuntimeObserver Obs_run("runtime.bin");

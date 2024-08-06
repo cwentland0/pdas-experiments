@@ -42,6 +42,7 @@ class ParserCommon
 
 protected:
     pressio::log::level loglevel_   = pressio::log::level::off;
+    std::string logfile_            = "log.txt";
     std::string meshDirPathFull_    = "";
     std::string meshDirPathHyper_   = "";
     int stateSamplingFreq_          = {};
@@ -63,6 +64,7 @@ public:
     auto icFlag()               const { return icFlag_; }
     auto userParams()           const { return userParams_; }
     auto loglevel()             const { return loglevel_; }
+    auto logfile()              const { return logfile_; }
 
 private:
     void parseImpl(YAML::Node & node)
@@ -96,6 +98,12 @@ private:
             else if (logstr == "info") loglevel_ = pressio::log::level::info;
             else if (logstr == "off") loglevel_ = pressio::log::level::off;
             else throw std::runtime_error("Invalid loglevel: " + logstr);
+        }
+
+        // logfile
+        entry = "logfile";
+        if (node[entry]) {
+            logfile_ = node[entry].as<std::string>();
         }
 
     }
@@ -246,13 +254,15 @@ private:
             if (hyperNode[entry]) gpodWeigherType_ = hyperNode[entry].as<std::string>();
             else throw std::runtime_error("Input hyper: missing " + entry);
 
-            entry = "numModesGpod";
-            if (hyperNode[entry]) gpodSize_ = hyperNode[entry].as<int>();
-            else throw std::runtime_error("Input rom: missing " + entry);
+            if (gpodWeigherType_ != "identity") {
+                entry = "numModesGpod";
+                if (hyperNode[entry]) gpodSize_ = hyperNode[entry].as<int>();
+                else throw std::runtime_error("Input rom: missing " + entry);
 
-            entry = "basisFileGpod";
-            if (hyperNode[entry]) gpodBasisFileName_ = hyperNode[entry].as<std::string>();
-            else throw std::runtime_error("Input rom: missing " + entry);
+                entry = "basisFileGpod";
+                if (hyperNode[entry]) gpodBasisFileName_ = hyperNode[entry].as<std::string>();
+                else throw std::runtime_error("Input rom: missing " + entry);
+            }
 
         }
     }
@@ -438,14 +448,15 @@ private:
                     if (decompNode[entry]) gpodWeigherTypeStr_ = decompNode[entry].as<std::string>();
                     else throw std::runtime_error("Input decomp: missing " + entry);
 
-                    entry = "gpodBasisRoot";
-                    if (decompNode[entry]) gpodBasisRoot_ = decompNode[entry].as<std::string>();
-                    else throw std::runtime_error("Input decomp: missing " + entry);
+                    if (gpodWeigherTypeStr_ != "identity") {
+                        entry = "gpodBasisRoot";
+                        if (decompNode[entry]) gpodBasisRoot_ = decompNode[entry].as<std::string>();
+                        else throw std::runtime_error("Input decomp: missing " + entry);
 
-                    entry = "gpodSizeVec";
-                    if (decompNode[entry]) gpodSizeVec_ = decompNode[entry].as<std::vector<int>>();
-                    else throw std::runtime_error("Input decomp: missing " + entry);
-
+                        entry = "gpodSizeVec";
+                        if (decompNode[entry]) gpodSizeVec_ = decompNode[entry].as<std::vector<int>>();
+                        else throw std::runtime_error("Input decomp: missing " + entry);
+                    }
                 }
                 else {
                     hyperSampleFiles_.resize(ndomains_, "");

@@ -30,38 +30,55 @@ overlap=0
 sampalgo="random"
 # sampalgo="eigenvec"
 
-# sampperc_arr=("0.001" "0.0025" "0.005" "0.01" "0.025" "0.05")
-# sampperc_arr=("0.005" "0.01" "0.025" "0.05")
-# nmodes_arr=(20 40 60 80 100)
-# nmodes_arr=(60 80 100)
-nmodes_arr=(300)
-sampperc_arr=("0.1")
-# nmodes_arr=(100)
+# sampperc_arr=("0.001" "0.0015" "0.0025" "0.00375" "0.005" "0.00875" "0.01" "0.015" "0.025" "0.0375" "0.05")
+# sampperc_arr=("0.005" "0.00875" "0.01" "0.015" "0.025" "0.0375" "0.05" "0.0875" "0.1")
+# sampperc_arr=("0.001")
+nmodes_arr=(0)
+
+# nmodes_arr=(300)
+# sampperc_arr=("0.01" "0.025" "0.05" "0.1")
 
 seedqdeim=0
 seedphys=0
 seedphysrate=0
-seeddom=1
-seeddomrate=1
+# seeddom=0
+# seeddomrate=0
 sampphys=0
 sampdom=0
 
+# seeddom=0
+# seeddomrate=0
+# sampperc_arr=("0.001" "0.0015" "0.0025" "0.00375" "0.005" "0.00875" "0.01" "0.015" "0.025" "0.0375" "0.05" "0.0875" "0.1")
+
+seeddom=1
+# seeddomrate=1
+# sampperc_arr=("0.015" "0.025" "0.0375" "0.05" "0.0875" "0.1")
+# seeddomrate=2
+# sampperc_arr=("0.00875" "0.01" "0.015" "0.025" "0.0375" "0.05" "0.0875" "0.1")
+# seeddomrate=3
+# sampperc_arr=("0.005" "0.00875" "0.01" "0.015" "0.025" "0.0375" "0.05" "0.0875" "0.1")
+# seeddomrate=5
+# sampperc_arr=("0.00375" "0.005" "0.00875" "0.01" "0.015" "0.025" "0.0375" "0.05" "0.0875" "0.1")
+# seeddomrate=10
+# sampperc_arr=("0.0015" "0.0025" "0.00375" "0.005" "0.00875" "0.01" "0.015" "0.025" "0.0375" "0.05" "0.0875" "0.1")
+seeddomrate=30
+sampperc_arr=("0.0015" "0.0025" "0.00375" "0.005" "0.00875" "0.01" "0.015" "0.025" "0.0375" "0.05" "0.0875" "0.1")
 
 # SWE
-# basisroot="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_swe/pod_bases/coriolis_0p0_to_n4p0"
-# OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_swe/meshes"
-# xl="-5.0"
-# xu="5.0"
-# yl="-5.0"
-# yu="5.0"
+basisroot="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_swe/pod_bases/coriolis_0p0_to_n4p0"
+OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_swe/meshes"
+xl="-5.0"
+xu="5.0"
+yl="-5.0"
+yu="5.0"
 
 # Riemann
-basisroot="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_euler/pod_bases/topRightPress_1p0_to_2p0"
-OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_euler/meshes"
-xl="0.0"
-xu="1.0"
-yl="0.0"
-yu="1.0"
+# basisroot="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_euler/pod_bases/topRightPress_0p5_to_1p5"
+# OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_euler/meshes"
+# xl="0.0"
+# xu="1.0"
+# yl="0.0"
+# yu="1.0"
 
 # ----- END USER INPUTS -----
 
@@ -142,7 +159,12 @@ for sampperc in "${sampperc_arr[@]}"; do
 
                 SAMPDIR="${OUTDIR}/${sampalgo}"
                 mkdir -p ${SAMPDIR}
-                SAMPDIR="${SAMPDIR}/modes_${nmodes}_samp_${sampperc}"
+
+                SAMPDIR="${SAMPDIR}/"
+                if [[ ${sampalgo} != "random" || ${seedqdeim} == 1 ]]; then
+                    SAMPDIR="${SAMPDIR}modes_${nmodes}_"
+                fi
+                SAMPDIR="${SAMPDIR}samp_${sampperc}"
                 if [ ${seedqdeim} -eq 1 ]; then
                     SAMPDIR="${SAMPDIR}_qdeim"
                 fi
@@ -175,7 +197,11 @@ for sampperc in "${sampperc_arr[@]}"; do
 
                 SAMPDIR="${OUTDIR}/${sampalgo}"
                 mkdir -p ${SAMPDIR}
-                SAMPDIR="${SAMPDIR}/modes_${nmodes}_samp_${sampperc}"
+                SAMPDIR="${SAMPDIR}/"
+                if [[ ${sampalgo} != "random" || ${seedqdeim} == 1 ]]; then
+                    SAMPDIR="${SAMPDIR}modes_${nmodes}_"
+                fi
+                SAMPDIR="${SAMPDIR}samp_${sampperc}"
                 if [ ${seedqdeim} -eq 1 ]; then
                     SAMPDIR="${SAMPDIR}_qdeim"
                 fi
