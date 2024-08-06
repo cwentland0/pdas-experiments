@@ -373,7 +373,7 @@ private:
             entry = "absTol";
             if (decompNode[entry]) absTol_ = decompNode[entry].as<ScalarType>();
             entry = "convStepMax";
-            if (decompNode[entry]) convStepMax_ = decompNode[entry].as<ScalarType>();
+            if (decompNode[entry]) convStepMax_ = decompNode[entry].as<int>();
 
             entry = "odeScheme";
             if (decompNode[entry]) {
