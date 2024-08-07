@@ -104,6 +104,24 @@ int main(int argc, char *argv[])
         }
 
     }
+    else if (eqsName == "2d_burgers") {
+        Parser2DBurgers<scalar_t> parser(node);
+
+        if (parser.isDecomp()) {
+            using app_t = pdas::burgers2d_app_type;
+            dispatch_decomp<app_t>(parser);
+        }
+        else {
+            const auto meshObj = pda::load_cellcentered_uniform_mesh_eigen<scalar_t>(parser.meshDirFull());
+            auto fomSystem = pda::create_problem_eigen(
+                meshObj, parser.probId(), parser.fluxOrder(),
+                parser.icFlag(), parser.userParams()
+            );
+
+            dispatch_mono(fomSystem, parser);
+        }
+
+    }
     else {
         throw std::runtime_error("Invalid 'equations': " + eqsName);
     }

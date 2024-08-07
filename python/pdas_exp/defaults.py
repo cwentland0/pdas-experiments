@@ -3,11 +3,13 @@ import itertools
 nvars = {
     "2d_swe": 3,
     "2d_euler": 4,
+    "2d_burgers": 2,
 }
 
 problem_options = {
     "2d_swe": ["SlipWall"],
     "2d_euler": ["NormalShock", "Riemann"],
+    "2d_burgers": ["BurgersOutflow"],
 }
 
 order_options = [1, 3, 5]
@@ -19,6 +21,9 @@ phys_params_default = {
     },
     "2d_euler": {
         "gamma": 1.4,
+    },
+    "2d_burgers": {
+        "diffusion": 1e-5,
     },
 }
 
@@ -51,6 +56,16 @@ ic_params_default = {
                 "riemannTopRightYVel": 0.0,
                 "riemannTopRightDensity": 1.5,
                 "riemannBotLeftPressure": 0.029,
+            },
+        },
+    },
+    "2d_burgers": {
+        "BurgersOutflow": {
+            "icFlag1": {
+                "pulseMagnitude": 0.5,
+                "pulseSpread": 0.15,
+                "pulseX": 0.0,
+                "pulseY": -0.2,
             },
         },
     },

@@ -15,8 +15,8 @@ SAMPMESHDRIVER="/home/crwentl/research/code/pressio-proj/pressio-demoapps/meshin
 # 7: WENO5
 stencil=3
 
-decomp=1
-hyper=1
+decomp=0
+hyper=0
 
 nx=300
 ny=300
@@ -65,12 +65,12 @@ seeddomrate=30
 sampperc_arr=("0.0015" "0.0025" "0.00375" "0.005" "0.00875" "0.01" "0.015" "0.025" "0.0375" "0.05" "0.0875" "0.1")
 
 # SWE
-basisroot="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_swe/pod_bases/coriolis_0p0_to_n4p0"
-OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_swe/meshes"
-xl="-5.0"
-xu="5.0"
-yl="-5.0"
-yu="5.0"
+#basisroot="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_swe/pod_bases/coriolis_0p0_to_n4p0"
+#OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_swe/meshes"
+#xl="-5.0"
+#xu="5.0"
+#yl="-5.0"
+#yu="5.0"
 
 # Riemann
 # basisroot="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/siamuq24/2d_euler/pod_bases/topRightPress_0p5_to_1p5"
@@ -79,6 +79,14 @@ yu="5.0"
 # xu="1.0"
 # yl="0.0"
 # yu="1.0"
+
+# Burgers
+basisroot="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/more24/2d_burgers/pod_bases/test"
+OUTDIRBASE="/home/crwentl/research/code/pressio-proj/pdas-experiments/cases/more24/2d_burgers/meshes"
+xl="-1.0"
+xu="1.0"
+yl="-1.0"
+yu="1.0"
 
 # ----- END USER INPUTS -----
 

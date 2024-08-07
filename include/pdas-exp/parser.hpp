@@ -42,6 +42,7 @@ class ParserCommon
 
 protected:
     pressio::log::level loglevel_   = pressio::log::level::off;
+    pressio::logto logtarget_       = pressio::logto::file;
     std::string logfile_            = "log.txt";
     std::string meshDirPathFull_    = "";
     std::string meshDirPathHyper_   = "";
@@ -64,6 +65,7 @@ public:
     auto icFlag()               const { return icFlag_; }
     auto userParams()           const { return userParams_; }
     auto loglevel()             const { return loglevel_; }
+    auto logtarget()            const { return logtarget_; }
     auto logfile()              const { return logfile_; }
 
 private:
@@ -98,6 +100,15 @@ private:
             else if (logstr == "info") loglevel_ = pressio::log::level::info;
             else if (logstr == "off") loglevel_ = pressio::log::level::off;
             else throw std::runtime_error("Invalid loglevel: " + logstr);
+        }
+        
+        entry = "logtarget";
+        if (node[entry]) {
+            std::string logstr = node[entry].as<std::string>();
+            if (logstr == "file") logtarget_ = pressio::logto::file;
+            else if (logstr == "terminal") logtarget_ = pressio::logto::terminal;
+            else if (logstr == "both") logtarget_ = pressio::logto::fileAndTerminal;
+            else throw std::runtime_error("Invalid logtarget: " + logstr);
         }
 
         // logfile
@@ -673,6 +684,51 @@ private:
         entry = "gamma";
         if (node[entry]) this->userParams_[entry] = node[entry].as<ScalarType>();
         else throw std::runtime_error("Input: missing " + entry);
+
+    }
+};
+
+template <typename ScalarType>
+class Parser2DBurgers: public ParserProblem<ScalarType>
+{
+
+    pressiodemoapps::AdvectionDiffusion2d probId_ = {};
+
+public:
+    Parser2DBurgers() = delete;
+    Parser2DBurgers(YAML::Node & node)
+    : ParserProblem<ScalarType>::ParserProblem(node)
+    {
+        this->parseImpl(node);
+    }
+
+    auto probId()           const{ return probId_; }
+
+private:
+    void parseImpl(YAML::Node & node) {
+
+        if (this->problemName_ == "BurgersOutflow") {
+            probId_ = pressiodemoapps::AdvectionDiffusion2d::BurgersOutflow;
+
+            // Gaussian pulse IC
+            const std::array<std::string, 4> names = {"pulseMagnitude", "pulseSpread", "pulseX", "pulseY"};
+            for (int i = 0; i < names.size(); ++i) {
+                if (node[names[i]]) {
+                    this->userParams_[names[i]] = node[names[i]].as<ScalarType>();
+                }
+                else {
+                    throw std::runtime_error("Input: missing " + names[i]);
+                }
+            }
+        }
+        else {
+            throw std::runtime_error("Invalid Burgers problemName: " + this->problemName_);
+        }
+
+        // only one physical parameter, diffusion
+        std::string entry = "diffusion";
+        if (node[entry]) this->userParams_[entry] = node[entry].as<ScalarType>();
+            else throw std::runtime_error("Input: missing " + entry);
 
     }
 };

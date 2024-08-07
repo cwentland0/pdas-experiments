@@ -15,14 +15,15 @@ void run_decomp(ParserType & parser)
 #pragma omp master
 #endif
     {
-        if (parser.loglevel() != pressio::log::level::off) {
-            pressio::log::initialize(pressio::logto::file, parser.logfile());
-            pressio::log::setVerbosity({parser.loglevel()});
+        if (parser.loglevel() != pressio::log::level::off &&
+            parser.logtarget() != pressio::logto::terminal) {
+            pressio::log::initialize(parser.logtarget(), parser.logfile());
         }
         else {
+            // to terminal if taget is terminal or no logging
             pressio::log::initialize(pressio::logto::terminal);
-            pressio::log::setVerbosity({parser.loglevel()});
         }
+        pressio::log::setVerbosity({parser.loglevel()});
     }
 
     namespace pda  = pressiodemoapps;

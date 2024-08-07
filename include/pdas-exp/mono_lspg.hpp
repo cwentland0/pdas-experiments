@@ -11,14 +11,15 @@
 template<class AppType, class ParserType>
 void run_mono_lspg(AppType & system, ParserType & parser)
 {
-    if (parser.loglevel() != pressio::log::level::off) {
-        pressio::log::initialize(pressio::logto::file, parser.logfile());
-        pressio::log::setVerbosity({parser.loglevel()});
+    if (parser.loglevel() != pressio::log::level::off &&
+        parser.logtarget() != pressio::logto::terminal) {
+        pressio::log::initialize(parser.logtarget(), parser.logfile());
     }
     else {
+        // to terminal if taget is terminal or no logging
         pressio::log::initialize(pressio::logto::terminal);
-        pressio::log::setVerbosity({parser.loglevel()});
     }
+    pressio::log::setVerbosity({parser.loglevel()});
 
     namespace pda    = pressiodemoapps;
     namespace pdas   = pdaschwarz;
@@ -91,7 +92,7 @@ void run_mono_lspg(AppType & system, ParserType & parser)
         // NonLinSolver.setStopCriterion(pnlins::Stop::WhenAbsolutel2NormOfGradientBelowTolerance);
         // NonLinSolver.setStopTolerance(1e-5);
         NonLinSolver.setStopCriterion(pnlins::Stop::WhenAbsolutel2NormOfCorrectionBelowTolerance);
-        NonLinSolver.setStopTolerance(1e-7);
+        NonLinSolver.setStopTolerance(1e-5);
 
         // execute
         auto runtimeStart = std::chrono::high_resolution_clock::now();
@@ -178,7 +179,7 @@ void run_mono_lspg(AppType & system, ParserType & parser)
         // NonLinSolver.setStopCriterion(pnlins::Stop::WhenAbsolutel2NormOfGradientBelowTolerance);
         // NonLinSolver.setStopTolerance(1e-5);
         NonLinSolver.setStopCriterion(pnlins::Stop::WhenAbsolutel2NormOfCorrectionBelowTolerance);
-        NonLinSolver.setStopTolerance(1e-7);
+        NonLinSolver.setStopTolerance(1e-5);
 
         // execute
         auto runtimeStart = std::chrono::high_resolution_clock::now();

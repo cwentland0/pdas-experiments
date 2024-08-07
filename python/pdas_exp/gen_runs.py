@@ -25,6 +25,7 @@ def gen_runs(
     icFlag,
     runner,
     loglevel,
+    logtarget,
     outdir_base,
     phys_params_user=None,
     ic_params_user=None,
@@ -54,6 +55,7 @@ def gen_runs(
     # ----- START CHECKS -----
 
     assert loglevel in ["debug", "info", "off"]
+    assert logtarget in ["file", "terminal", "both"]
     assert scheme in ["BDF1", "BDF2"]
     assert tf > 0.0
     assert sampfreq >= 1
@@ -292,6 +294,7 @@ def gen_runs(
         with open(runfile, "w") as f:
 
             f.write(f"loglevel: \"{loglevel}\"\n")
+            f.write(f"logtarget: \"{logtarget}\"\n")
             f.write(f"equations: \"{equations}\"\n")
             f.write(f"fluxOrder: {order}\n")
             f.write(f"problemName: \"{problem}\"\n")
@@ -480,6 +483,7 @@ if __name__ == "__main__":
         inputs["icFlag"],
         inputs["runner"],
         inputs["loglevel"],
+        inputs["logtarget"],
         inputs["outdir_base"],
         phys_params_user=phys_params_user,
         ic_params_user=ic_params_user,
